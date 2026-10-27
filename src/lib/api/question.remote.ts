@@ -132,21 +132,6 @@ export const fetchMultimathsQuestionById = query(
             [], null, null,
         );
 
-        let baseVariables: GeneratedVariable[] = [...(generatedVariables || [])];
-        for (const constrainedVar of rootTemplate.constrained) {
-            if (!baseVariables.some(v => v.name === constrainedVar.name)) {
-                baseVariables.push({
-                    name: constrainedVar.name,
-                    value: generateVariableValue(constrainedVar),
-                });
-            }
-        }
-
-        const derivedVariables = generateDerivedVariables(baseVariables, rootTemplate.derived);
-        const variables: GeneratedVariable[] = [...baseVariables, ...derivedVariables];
-
-        let rootQuestion = rootTemplate.generate(variables);
-
         const partsData = await db.execute<typeof multimaths_question_parts.$inferSelect>(sql`
             SELECT *
             FROM ${multimaths_question_parts}
@@ -154,44 +139,63 @@ export const fetchMultimathsQuestionById = query(
             ORDER BY ${multimaths_question_parts.index} ASC
         `);
 
-        const stepQuestions: Question<Answer>[] = await Promise.all(
-            partsData.map(async (part) => {
-                let stepVariables: GeneratedVariable[] = [...variables];
-                for (let [newVarName, expression] of Object.entries(part.variable_mapping)) {
-                    let derivedVariable = {
-                        name: newVarName,
-                        expression: expression,
-                    };
-                    let generatedVariable = evaluateDerivedVariable(derivedVariable, variables);
-                    stepVariables = stepVariables.filter(v => v.name !== newVarName);
-                    stepVariables.push(generatedVariable);
-                }
-
-                let template: any = await fetchMathsQuestionTemplateById({ questionId: part.part_question_id });
-                if (!template) {
-                    template = await fetchMultimathsQuestionById({
-                        questionId: part.part_question_id,
-                        generatedVariables: stepVariables,
-                    });
-                    if (!template) {
-                        throw new Error(`Could not find question template for part question ID ${part.part_question_id}`);
-                    }
-                }
-
-                let question: Question;
-                if (template instanceof MathsQuestionTemplate) {
-                    question = template.generate(stepVariables);
-                } else if (template instanceof MultimathsQuestion) {
-                    question = template;
+        while (true) {
+            let rootQuestion: Question<Answer>;
+            let stepQuestions: Question<Answer>[];
+            try {
+                let variables: GeneratedVariable[];
+                if (generatedVariables && generatedVariables.length > 0) {
+                    variables = [...generatedVariables];
                 } else {
-                    throw new Error(`Unsupported question type for part question ID ${part.part_question_id}`);
+                    variables = [...rootTemplate.generateVariables()];
                 }
-                return question;
-            })
-        );
+                rootQuestion = rootTemplate.generate(variables);
+                console.log("Generated root question:", rootQuestion);
 
-        let multimaths = new MultimathsQuestion(rootQuestion.id, rootQuestion.prompt, stepQuestions);
-        return multimaths;
+                stepQuestions = await Promise.all(
+                    partsData.map(async (part) => {
+                        let stepVariables: GeneratedVariable[] = [...variables];
+                        for (let [newVarName, expression] of Object.entries(part.variable_mapping)) {
+                            let derivedVariable = {
+                                name: newVarName,
+                                expression: expression,
+                            };
+                            let generatedVariable = evaluateDerivedVariable(derivedVariable, variables);
+                            stepVariables = stepVariables.filter(v => v.name !== newVarName);
+                            stepVariables.push(generatedVariable);
+                        }
+
+                        let template: any = await fetchMathsQuestionTemplateById({ questionId: part.part_question_id });
+                        if (!template) {
+                            template = await fetchMultimathsQuestionById({
+                                questionId: part.part_question_id,
+                                generatedVariables: stepVariables,
+                            });
+                            if (!template) {
+                                throw new Error(`Could not find question template for part question ID ${part.part_question_id}`);
+                            }
+                        }
+
+                        let question: Question;
+                        if (template instanceof MathsQuestionTemplate) {
+                            question = template.generate(stepVariables);
+                        } else if (template instanceof MultimathsQuestion) {
+                            question = template;
+                        } else {
+                            throw new Error(`Unsupported question type for part question ID ${part.part_question_id}`);
+                        }
+                        return question;
+                    })
+                );
+            } catch (error) {
+                // Try again with different generated variables, in case the first attempt failed due to invalid derived variable values.
+                // TODO: Optimise this so we don't have to query the database every time we retry.
+                // I've mostly done this already, but we still need to query for the actual part data (as there's currently no *easy* way of getting the reusable templates)
+                continue;
+            }
+            return new MultimathsQuestion(rootQuestion.id, rootQuestion.prompt, stepQuestions);
+        }
+
     }
 );
 

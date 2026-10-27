@@ -15,29 +15,41 @@ export class MathsQuestionTemplate {
         public derived: DerivedVariable[],
         public answers: string[],
         public hint: string | null = null,
-            public explanation: string | null = null,
-            public markingEngine: string | null = null,
+        public explanation: string | null = null,
+        public markingEngine: string | null = null,
     ) {}
 
         public generateVariables(): GeneratedVariable[] {
-            let variables: GeneratedVariable[] = [];
-            for (const constrainedVariable of this.constrained) {
-                const generatedValue = generateVariableValue(constrainedVariable);
-                variables.push({
-                    name: constrainedVariable.name,
-                    value: generatedValue,
-                });
+            let wasSuccessful = true;
+            while (true) {
+                let variables: GeneratedVariable[] = [];
+                for (const constrainedVariable of this.constrained) {
+                    const generatedValue = generateVariableValue(constrainedVariable);
+                    variables.push({
+                        name: constrainedVariable.name,
+                        value: generatedValue,
+                    });
+                }
+                let derivedVariables;
+                try {
+                    derivedVariables = generateDerivedVariables(variables, this.derived);
+                } catch (error) {
+                    wasSuccessful = false;
+                    continue;
+                }
+                variables.push(...derivedVariables);
+                if (wasSuccessful) {
+                    return variables;
+                }
             }
-            let derivedVariables = generateDerivedVariables(variables, this.derived);
-            variables.push(...derivedVariables);
-            return variables;
         }
 
         public generate(variables?: GeneratedVariable[]): MathsQuestion {
             if (!variables || variables.length === 0) {
                 variables = this.generateVariables();
+            } else {
+                variables = variables.concat(generateDerivedVariables(variables, this.derived));
             }
-            variables = variables.concat(generateDerivedVariables(variables, this.derived));
 
             let question = new MathsQuestion(
                 this.id,
@@ -79,7 +91,6 @@ export function insertVariablesIntoExpression(expression: string, variables: Gen
     for (const variable of variables) {
         expressionWithValues = expressionWithValues.replaceAll(`[[${variable.name}]]`, "\{" + variable.value + "\}");
     }
-    console.log("Simplified expression: ", expressionWithValues, "from original: ", expression);
     return simplifyAbnormalities(expressionWithValues);
 }
 
@@ -98,11 +109,15 @@ export function evaluateDerivedVariable(derivedVariable: DerivedVariable, variab
     }
     
     const parsedExpression = parse(asciiMathExpression);
-    const evaluatedValue = simplify(parsedExpression);
+    const evaluatedValue = simplify(parsedExpression).toString();
+
+    if (evaluatedValue === "undefined" || evaluatedValue === "null" || evaluatedValue === Infinity.toString() || evaluatedValue === (-Infinity).toString()) {
+        throw new Error(`Derived variable ${derivedVariable.name} evaluated to an invalid value: ${evaluatedValue}`, { cause: { derivedVariable, asciiMathExpression, evaluatedValue } });
+    }
     
     return {
         name: derivedVariable.name,
-        value: evaluatedValue.toString(),
+        value: evaluatedValue,
     };
 }
 
@@ -118,6 +133,7 @@ export function generateVariableValue(variable: ConstrainedVariable): string {
         const randomStep = Math.floor(Math.random() * (range + 1));
         generatedValue = min + randomStep * step;
     } while (variable.exclude && variable.exclude.includes(generatedValue));
+    console.log(generatedValue.toString(), "generatedValue");
 
     return generatedValue.toString();
 }
