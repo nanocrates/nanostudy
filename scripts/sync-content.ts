@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import JSON5 from 'json5';
 
 import * as schema from '../src/lib/server/db/schema';
 import type { ConstrainedVariable, DerivedVariable } from '../src/lib/server/db/schema';
@@ -136,6 +137,7 @@ const stores = {
 
 function processQuestion(q: string | QuestionDef): string {
   if (typeof q === 'string') return q;
+  if (!q || !q.type) throw new Error(`Invalid question definition: ${JSON.stringify(q)}`);
 
   switch (q.type) {
     case 'basic':
@@ -161,14 +163,14 @@ function processQuestion(q: string | QuestionDef): string {
       });
       break;
 
-    case 'multistep':
+      case 'multistep':
       stores.multistep_questions.set(q.id, {
         id: q.id,
         prompt: q.prompt,
       });
       q.parts.forEach((part) => {
         const partId = processQuestion(part.question);
-        const compositeKey = `${q.id}:${partId}`;
+        const compositeKey = `${q.id}:${part.index}`;
         stores.multistep_question_parts.set(compositeKey, {
           multistep_id: q.id,
           part_question_id: partId,
@@ -185,8 +187,9 @@ function processQuestion(q: string | QuestionDef): string {
         derived: q.derived ?? [],
       });
       q.parts.forEach((part) => {
+        if (!part.question) throw new Error(`Multimaths part for question ${q.id} is missing a question definition for part index ${part.index}`);
         const partId = processQuestion(part.question);
-        const compositeKey = `${q.id}:${partId}`;
+        const compositeKey = `${q.id}:${part.index}`;
         stores.multimaths_question_parts.set(compositeKey, {
           multimaths_id: q.id,
           part_question_id: partId,
@@ -402,7 +405,7 @@ async function runSync() {
   console.log(`Loading content from ${filePath}...`);
 
   const fileData = readFileSync(filePath, 'utf-8');
-  const payload: ContentPayload = JSON.parse(fileData);
+  const payload: ContentPayload = JSON5.parse(fileData);
 
   normalizePayload(payload);
 
@@ -419,8 +422,8 @@ async function runSync() {
     { tableName: 'multistep_questions', table: schema.multistep_questions, incomingItems: Array.from(stores.multistep_questions.values()), primaryKeys: ['id'] },
     { tableName: 'multimaths_questions', table: schema.multimaths_questions, incomingItems: Array.from(stores.multimaths_questions.values()), primaryKeys: ['id'] },
 
-    { tableName: 'multistep_question_parts', table: schema.multistep_question_parts, incomingItems: Array.from(stores.multistep_question_parts.values()), primaryKeys: ['multistep_id', 'part_question_id'] },
-    { tableName: 'multimaths_question_parts', table: schema.multimaths_question_parts, incomingItems: Array.from(stores.multimaths_question_parts.values()), primaryKeys: ['multimaths_id', 'part_question_id'] },
+    { tableName: 'multistep_question_parts', table: schema.multistep_question_parts, incomingItems: Array.from(stores.multistep_question_parts.values()), primaryKeys: ['multistep_id', 'index'] },
+    { tableName: 'multimaths_question_parts', table: schema.multimaths_question_parts, incomingItems: Array.from(stores.multimaths_question_parts.values()), primaryKeys: ['multimaths_id', 'index'] },
     { tableName: 'lesson_questions', table: schema.lesson_questions, incomingItems: Array.from(stores.lesson_questions.values()), primaryKeys: ['lesson_id', 'question_id'] },
   ];
 

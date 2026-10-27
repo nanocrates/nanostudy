@@ -78,7 +78,7 @@ export const multistep_question_parts = pgTable("multistep_question_parts", {
   part_question_id: text("part_question_id").notNull(),
   index: integer("index").notNull(),
 }, (table) => [
-  primaryKey({ columns: [table.multistep_id, table.part_question_id] }),
+  primaryKey({ columns: [table.multistep_id, table.index] }),
 ]).enableRLS();
 
 export const multimaths_questions = pgTable("multimaths_questions", {
@@ -94,7 +94,7 @@ export const multimaths_question_parts = pgTable("multimaths_question_parts", {
   variable_mapping: jsonb("variable_mapping").$type<Record<string, string>>().notNull().default({}),
   index: integer("index").notNull(),
 }, (table) => [
-  primaryKey({ columns: [table.multimaths_id, table.part_question_id] }),
+  primaryKey({ columns: [table.multimaths_id, table.index] }),
 ]).enableRLS();
 
 export const lesson_questions = pgTable("lesson_questions", {

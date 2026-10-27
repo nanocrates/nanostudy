@@ -3,7 +3,7 @@ import { Question } from "$lib/types/question/question";
 import { Answer } from "$lib/types/question/answer";
 import { parse, compare } from "@khanacademy/kas";
 import { evaluate, number, round } from "mathjs";
-import { convertLatexToAsciiMath, MathfieldElement } from "mathlive";
+import { convertLatexToAsciiMath } from "mathlive";
 
 export type GeneratedVariable = {
     name: string;
@@ -42,6 +42,8 @@ export class MathsAnswer extends Answer {
             displayAnswer = round(evaluate(displayAnswer), 2)
             .toString().replace(/\.0+$/, '') // remove trailing zeros;
         }
+        displayAnswer = displayAnswer
+            .replace("*", "\\times");
         return "$" + displayAnswer + "$";
     }
 
@@ -66,7 +68,8 @@ export class MathsAnswer extends Answer {
     public isCorrectCas(studentAnswer: string): boolean {
         const studentExpr = parse(studentAnswer).expr;
         for (const validAnswer of this.validAnswers) {
-            const answerExpr = parse(validAnswer).expr;
+            let validAscii = convertLatexToAsciiMath(validAnswer);
+            const answerExpr = parse(validAscii).expr;
             const result = compare(studentExpr, answerExpr, {
                 form: true,
             });
@@ -81,8 +84,9 @@ export class MathsAnswer extends Answer {
         const studentStr = String(studentAnswer).trim();                               
         if (!studentStr) return false;                                                 
 
+        let studentNum: number;
         try {
-            const studentNum = number(studentStr) as number;                               
+            studentNum = number(studentStr) as number;                               
         } catch (e) {
             return false; // they didn't even type a number, so it's definitely wrong
         }

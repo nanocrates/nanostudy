@@ -6,7 +6,7 @@ import { sql } from 'drizzle-orm';
 import * as v from 'valibot';
 import { error } from '@sveltejs/kit';
 import { BasicAnswer } from '$lib/types/question';
-import { MathsQuestionTemplate } from '$lib/generator';
+import { evaluateDerivedVariable, generateDerivedVariables, generateVariableValue, MathsQuestionTemplate } from '$lib/generator';
 import { MultimathsQuestion } from '$lib/types/question/multimaths';
 import type { GeneratedVariable, MathsAnswer } from '$lib/types/question/maths';
 
@@ -137,12 +137,12 @@ export const fetchMultimathsQuestionById = query(
             if (!baseVariables.some(v => v.name === constrainedVar.name)) {
                 baseVariables.push({
                     name: constrainedVar.name,
-                    value: (rootTemplate as any).generateVariableValue(constrainedVar),
+                    value: generateVariableValue(constrainedVar),
                 });
             }
         }
 
-        const derivedVariables = rootTemplate.generateDerivedVariables(baseVariables);
+        const derivedVariables = generateDerivedVariables(baseVariables, rootTemplate.derived);
         const variables: GeneratedVariable[] = [...baseVariables, ...derivedVariables];
 
         let rootQuestion = rootTemplate.generate(variables);
@@ -156,17 +156,15 @@ export const fetchMultimathsQuestionById = query(
 
         const stepQuestions: Question<Answer>[] = await Promise.all(
             partsData.map(async (part) => {
-                let stepVariables: GeneratedVariable[] = [];
-                for (let globalVariable of variables) {
-                    let mappedVariableName = part.variable_mapping[globalVariable.name];
-                    if (!mappedVariableName) {
-                        mappedVariableName = globalVariable.name;
-                    }
-                    stepVariables = stepVariables.filter(v => v.name !== mappedVariableName);
-                    stepVariables.push({
-                        name: mappedVariableName,
-                        value: globalVariable.value,
-                    });
+                let stepVariables: GeneratedVariable[] = [...variables];
+                for (let [newVarName, expression] of Object.entries(part.variable_mapping)) {
+                    let derivedVariable = {
+                        name: newVarName,
+                        expression: expression,
+                    };
+                    let generatedVariable = evaluateDerivedVariable(derivedVariable, variables);
+                    stepVariables = stepVariables.filter(v => v.name !== newVarName);
+                    stepVariables.push(generatedVariable);
                 }
 
                 let template: any = await fetchMathsQuestionTemplateById({ questionId: part.part_question_id });
