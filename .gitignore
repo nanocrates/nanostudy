@@ -28,5 +28,5 @@ vite.config.ts.timestamp-*
 
 # Don't commit Nanostudy's content - this is All Rights Reserved whereas the
 # rest of the repo is MIT licensed.
-content.json
+content.json5
 backup/

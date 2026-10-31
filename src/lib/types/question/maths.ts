@@ -4,6 +4,7 @@ import { Answer } from "$lib/types/question/answer";
 import { parse, compare } from "@khanacademy/kas";
 import { evaluate, number, round } from "mathjs";
 import { convertLatexToAsciiMath } from "mathlive";
+import { latexToAscii } from "$lib/generator/simplify";
 
 export type GeneratedVariable = {
     name: string;
@@ -59,19 +60,23 @@ export class MathsAnswer extends Answer {
         studentAnswer = convertLatexToAsciiMath(studentAnswer.slice(1, -1)); // remove $ signs
         if (this.markingType == "cas") {
             return this.isCorrectCas(studentAnswer);
+        } else if (this.markingType == "identity") {
+            return this.isCorrectCas(studentAnswer, false);
         } else if (this.markingType == "approx") {
             return this.isValidApprox(studentAnswer);
         }
         throw new Error(`Unknown marking type: ${this.markingType}`);
     }
 
-    public isCorrectCas(studentAnswer: string): boolean {
+    public isCorrectCas(studentAnswer: string, requireForm: boolean = true): boolean {
         const studentExpr = parse(studentAnswer).expr;
         for (const validAnswer of this.validAnswers) {
-            let validAscii = convertLatexToAsciiMath(validAnswer);
+            let validAscii = latexToAscii(validAnswer);
+            console.log(`Checking student answer: ${studentAnswer} against valid answer: ${validAscii}`);
             const answerExpr = parse(validAscii).expr;
+            console.log(answerExpr);
             const result = compare(studentExpr, answerExpr, {
-                form: true,
+                form: requireForm,
             });
             if (result.equal) {
                 return true;

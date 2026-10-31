@@ -1,9 +1,9 @@
 import type { ConstrainedVariable, DerivedVariable } from "$lib/server/db/schema";
 import { MathsQuestion } from "$lib/types/question";
 import { MathsAnswer, type GeneratedVariable } from "$lib/types/question/maths";
-import { parse, simplify } from "mathjs";
+import { evaluate, parse, simplify } from "mathjs";
 import { convertLatexToAsciiMath } from "mathlive";
-import { simplifyAbnormalities } from "./simplify";
+import { latexToAscii, simplifyAbnormalities } from "./simplify";
 
 export class MathsQuestionTemplate {
     readonly type: string = "maths-template";
@@ -13,6 +13,7 @@ export class MathsQuestionTemplate {
         public prompt: string,
         public constrained: ConstrainedVariable[],
         public derived: DerivedVariable[],
+        public constraints: string[],
         public answers: string[],
         public hint: string | null = null,
         public explanation: string | null = null,
@@ -20,8 +21,7 @@ export class MathsQuestionTemplate {
     ) {}
 
         public generateVariables(): GeneratedVariable[] {
-            let wasSuccessful = true;
-            while (true) {
+            for (let attempt = 0; attempt < 30; attempt++) {
                 let variables: GeneratedVariable[] = [];
                 for (const constrainedVariable of this.constrained) {
                     const generatedValue = generateVariableValue(constrainedVariable);
@@ -34,14 +34,21 @@ export class MathsQuestionTemplate {
                 try {
                     derivedVariables = generateDerivedVariables(variables, this.derived);
                 } catch (error) {
-                    wasSuccessful = false;
+                    console.log("Error generating derived variables, retrying...", error);
                     continue;
                 }
                 variables.push(...derivedVariables);
-                if (wasSuccessful) {
-                    return variables;
+                for (const constraint of this.constraints) {
+                    try {
+                        validateConstraint(constraint, variables);
+                    } catch (error) {
+                        console.log("Constraint validation failed, retrying...", error);
+                        continue;
+                    }
                 }
+                return variables;
             }
+            throw new Error(`Failed to generate valid variables for question ${this.id} after 30 attempts.`);
         }
 
         public generate(variables?: GeneratedVariable[]): MathsQuestion {
@@ -49,6 +56,9 @@ export class MathsQuestionTemplate {
                 variables = this.generateVariables();
             } else {
                 variables = variables.concat(generateDerivedVariables(variables, this.derived));
+            }
+            for (const constraint of this.constraints) {
+                validateConstraint(constraint, variables);
             }
 
             let question = new MathsQuestion(
@@ -78,6 +88,24 @@ export class MathsQuestionTemplate {
 }
 
 
+export function validateConstraint(constraint: string, variables: GeneratedVariable[]): void {
+    let evaluatedValue: string;
+    try {
+        let expressionWithValues = insertVariablesIntoExpression(constraint, variables);
+        let asciiMathExpression = convertLatexToAsciiMath(expressionWithValues);
+        asciiMathExpression = asciiMathExpression.replaceAll('∗', '*');
+        const parsedExpression = parse(asciiMathExpression);
+        evaluatedValue = simplify(parsedExpression).toString();
+    } catch (error) {
+        console.error(`Schema error evaluating constraint ${constraint} with variables ${JSON.stringify(variables)}: ${error}`);
+        throw new SyntaxError("Constraint is syntactically invalid: " + error);
+    }
+    if (evaluatedValue == "0") {
+        console.log(`Constraint ${constraint} evaluated to false with variables ${JSON.stringify(variables)}. Evaluated value: ${evaluatedValue}`);
+        throw new Error(`Constraint ${constraint} evaluated to false with variables ${JSON.stringify(variables)}. Evaluated value: ${evaluatedValue}`);
+    }
+}
+
 export function generateDerivedVariables(variables: GeneratedVariable[], derived: DerivedVariable[]): GeneratedVariable[] {
     let derivedVariables: GeneratedVariable[] = [];
     for (const derivedVariable of derived) {
@@ -97,24 +125,28 @@ export function insertVariablesIntoExpression(expression: string, variables: Gen
 
 export function evaluateDerivedVariable(derivedVariable: DerivedVariable, variables: GeneratedVariable[]): GeneratedVariable {
     const expressionWithValues = insertVariablesIntoExpression(derivedVariable.expression, variables);
-    let asciiMathExpression = convertLatexToAsciiMath(expressionWithValues);
-    
-    asciiMathExpression = asciiMathExpression.replaceAll('∗', '*');
+    let asciiMathExpression = latexToAscii(expressionWithValues);
 
-    if (asciiMathExpression.startsWith('((') && asciiMathExpression.endsWith('))')) {
-        asciiMathExpression = asciiMathExpression
-            .replace(/^\(\(/, '[[')
-            .replace(/\)\)$/, ']]')
-            .replaceAll('),(', '],[');
-    }
-    
     const parsedExpression = parse(asciiMathExpression);
-    const evaluatedValue = simplify(parsedExpression).toString();
+    if (parsedExpression.toString() === "undefined" || parsedExpression.toString() === "null") {
+        throw new SyntaxError(`Derived variable ${derivedVariable.name} has an syntactically invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, asciiMathExpression } });
+    }
+    let evaluatedValue: string;
+    try {
+        evaluatedValue = simplify(asciiMathExpression).toString();
+    } catch (error) {
+        try {
+            evaluatedValue = evaluate(asciiMathExpression).toString();
+        } catch (error) {
+            throw new SyntaxError(`Derived variable ${derivedVariable.name} has an invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, asciiMathExpression, error } });
+        }
+    }
 
     if (evaluatedValue === "undefined" || evaluatedValue === "null" || evaluatedValue === Infinity.toString() || evaluatedValue === (-Infinity).toString()) {
+        console.log("Derived variable evaluation failed:", { derivedVariable, asciiMathExpression, evaluatedValue });
         throw new Error(`Derived variable ${derivedVariable.name} evaluated to an invalid value: ${evaluatedValue}`, { cause: { derivedVariable, asciiMathExpression, evaluatedValue } });
     }
-    
+
     return {
         name: derivedVariable.name,
         value: evaluatedValue,
@@ -128,12 +160,17 @@ export function generateVariableValue(variable: ConstrainedVariable): string {
     let step = variable.step || 1;
 
     let generatedValue: number;
-    do {
+    if (!variable.exclude) {
+        variable.exclude = [];
+    }
+    for (let attempt = 0; attempt < 30; attempt++) {
         const range = Math.floor((max - min) / step);
         const randomStep = Math.floor(Math.random() * (range + 1));
         generatedValue = min + randomStep * step;
-    } while (variable.exclude && variable.exclude.includes(generatedValue));
-    console.log(generatedValue.toString(), "generatedValue");
+        if (!variable.exclude.includes(generatedValue)) {
+            return generatedValue.toString();
+        }
+    }
 
-    return generatedValue.toString();
+    throw new Error(`Failed to generate a valid value for variable ${variable.name} after 30 attempts.`);
 }

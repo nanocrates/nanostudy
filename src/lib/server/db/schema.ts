@@ -62,6 +62,7 @@ export const maths_questions = pgTable("maths_questions", {
   prompt: text("prompt").notNull(),
   constrained: jsonb("constrained").$type<ConstrainedVariable[]>().notNull().default([]),
   derived: jsonb("derived").$type<DerivedVariable[]>().notNull().default([]),
+  constraints: jsonb("constraints").$type<string[]>().notNull().default([]),
   answers: jsonb("answers").$type<string[]>().notNull().default([]),
   hint: text("hint"),
   explanation: text("explanation"),
@@ -86,6 +87,7 @@ export const multimaths_questions = pgTable("multimaths_questions", {
   prompt: text("prompt").notNull(),
   constrained: jsonb("constrained").$type<ConstrainedVariable[]>().notNull().default([]),
   derived: jsonb("derived").$type<DerivedVariable[]>().notNull().default([]),
+  constraints: jsonb("constraints").$type<string[]>().notNull().default([]),
 }).enableRLS();
 
 export const multimaths_question_parts = pgTable("multimaths_question_parts", {

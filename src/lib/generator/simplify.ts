@@ -1,146 +1,138 @@
+import { convertLatexToAsciiMath } from "mathlive";
+
+export function latexToAscii(latex: string): string {
+    let asciiMathExpression = convertLatexToAsciiMath(latex);
+    asciiMathExpression = asciiMathExpression.replaceAll('∗', '*');
+    if (asciiMathExpression.startsWith('((') && asciiMathExpression.endsWith('))')) {
+        asciiMathExpression = asciiMathExpression
+        .replace(/^\(\(/, '[[')
+                     .replace(/\)\)$/, ']]')
+                     .replaceAll('),(', '],[');
+    }
+    return asciiMathExpression;
+}
+
+
 export function simplifyAbnormalities(expression: string): string {
-  if (!expression) return '';
+    if (!expression) return '';
 
-  if (expression.includes('$')) {
-    return expression.replace(/(\$\$[\s\S]*?\$\$|\$(?:\\\$|[^\$])+\$)/g, (match) => {
-      if (match.startsWith('$$')) {
-        return '$$' + simplifyMathString(match.slice(2, -2)) + '$$';
-      }
-      return '$' + simplifyMathString(match.slice(1, -1)) + '$';
-    });
-  }
+    // Handle inline ($...$) or display ($$...$$) LaTeX blocks
+    if (expression.includes('$')) {
+        return expression.replace(/(\$\$[\s\S]*?\$\$|\$(?:\\\$|[^\$])+\$)/g, (match) => {
+            if (match.startsWith('$$')) {
+                return '$$' + simplifyMathString(match.slice(2, -2)) + '$$';
+            }
+            return '$' + simplifyMathString(match.slice(1, -1)) + '$';
+        });
+    }
 
-  return simplifyMathString(expression);
+    return simplifyMathString(expression);
 }
 
 function simplifyMathString(expr: string): string {
-  let prev = '';
-  let current = expr;
-  let iterations = 0;
+    let prev = '';
+    let current = expr;
+    let iterations = 0;
 
-  // Run bounded passes until stable
-  while (current !== prev && iterations < 5) {
-    prev = current;
-    iterations++;
+    // Run bounded passes until stable (max 5 passes)
+    while (current !== prev && iterations < 5) {
+        prev = current;
+        iterations++;
 
-    // Unwrap redundant single-term scalar braces/brackets: e.g. {-2} -> -2, -{-9} -> -(-9)
-    current = unwrapScalarBrackets(current);
+        // 1. Unwrap redundant single-term scalar braces (e.g., {-3} -> -3, {+1} -> 1)
+        // Preserves LaTeX command arguments (\sqrt{x}, \frac{a}{b}) and sub/superscripts (x_{-3})
+        current = unwrapRedundantBraces(current);
 
-    // Resolve adjacent and nested sign collisions: e.g. -(-9) -> 9, +(-1) -> -1, --9 -> +9
-    current = simplifySigns(current);
+        // 2. Resolve sign collisions with bracketed or parenthesized terms
+        // e.g., -(-5) -> + 5, +(-5) -> - 5, -{-5} -> + 5
+        current = current
+            .replace(/-\s*[\(\{]\s*-\s*([a-zA-Z0-9_\^\.\{\}\\]+)\s*[\)\}]/g, ' + $1')
+            .replace(/\+\s*[\(\{]\s*-\s*([a-zA-Z0-9_\^\.\{\}\\]+)\s*[\)\}]/g, ' - $1')
+            .replace(/-\s*[\(\{]\s*\+\s*([a-zA-Z0-9_\^\.\{\}\\]+)\s*[\)\}]/g, ' - $1')
+            .replace(/\+\s*[\(\{]\s*\+\s*([a-zA-Z0-9_\^\.\{\}\\]+)\s*[\)\}]/g, ' + $1');
 
-    // Clean identity operations (unit multipliers, zero terms, leading pluses)
-    current = current
-      .replace(/(\+|\-)\s*0(?!\d|\.)/g, '')
-      .replace(/(?<=^|[\+\-\*\/\(\=\{\[\s])0\s*\+\s*/g, '')
-      .replace(/\*\s*1(?!\d|\.)/g, '')
-      .replace(/\/\s*1(?!\d|\.)/g, '')
-      .replace(/(\d+(?:\.\d+)?)\s*\*\s*([a-zA-Z\(]|\\(?:[a-zA-Z]+))/g, '$1$2')
-      .replace(/\b1([a-zA-Z]|\\(?:[a-zA-Z]+))\b/g, '$1')
-      .replace(/(?<=^|[\(\=\{\[\s])\+\s*/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
+        // 3. Collapse adjacent double signs without brackets
+        // e.g., --5 -> + 5, +-5 -> - 5, -+5 -> - 5, ++5 -> + 5
+        current = current
+            .replace(/-\s*-\s*/g, ' + ')
+            .replace(/\+\s*-\s*/g, ' - ')
+            .replace(/-\s*\+\s*/g, ' - ')
+            .replace(/\+\s*\+\s*/g, ' + ');
 
-  return current;
-}
+        // 4. Strip redundant unary plus signs across ALL contexts including matrices:
+        // Matches after start of string, delimiters, operators, matrix column separators (&),
+        // matrix row breaks (\\), and environment openers (\begin{pmatrix})
+        current = current.replace(
+            /(?<=^|[\(\=\{\[\<\>\+\-\*\/\&\,;\^_\~]|\\[\\a-zA-Z]+(?:\s*\{[^{}]*\})*)\s*\+\s*(?=[a-zA-Z0-9\(\[\{\\])/g,
+            ''
+        );
 
-function unwrapScalarBrackets(str: string): string {
-  const result: string[] = [];
-  let i = 0;
+        // 5. Unwrap redundant single-term parens after operators or structural delimiters
+        // e.g., (+5) -> 5, (-x) at start -> -x (preserves function calls like sin(x) and 2(x))
+        current = current.replace(
+            /(?<=^|[\(\=\{\[\<\>\+\-\*\/\&\,;\^_\~]|\\[\\a-zA-Z]+(?:\s*\{[^{}]*\})*)\s*\(\s*([\+\-]?\s*(?:\d+(?:\.\d+)?|[a-zA-Z]|\\(?:[a-zA-Z]+)))\s*\)/g,
+            '$1'
+        );
 
-  while (i < str.length) {
-    // Check for LaTeX commands starting with \ (like \begin{pmatrix}, \end{pmatrix}, \frac{1}{2}, etc.)
-    if (str[i] === '\\') {
-      let cmd = '\\';
-      i++;
-      while (i < str.length && /[a-zA-Z]/.test(str[i])) {
-        cmd += str[i];
-        i++;
-      }
-      result.push(cmd);
-      
-      // Preserve critical arguments for structural LaTeX macros (e.g., \begin{pmatrix}, \end{matrix})
-      if (
-        cmd === '\\begin' || cmd === '\\end' || 
-        cmd === '\\frac' || cmd === '\\pmatrix' ||
-        cmd === '\\left' || cmd === '\\right'
-      ) {
-        // Find trailing brackets after the command and preserve them intact
-        while (i < str.length && (str[i] === '{' || str[i] === '[' || str[i] === ' ' || str[i] === '(')) {
-          if (str[i] === '{') {
-            const end = findMatchingBracket(str, i, '{', '}');
-            if (end !== -1) {
-              result.push(str.slice(i, end + 1));
-              i = end + 1;
-              continue;
-            }
-          } else if (str[i] === '[') {
-            const end = findMatchingBracket(str, i, '[', ']');
-            if (end !== -1) {
-              result.push(str.slice(i, end + 1));
-              i = end + 1;
-              continue;
-            }
-          }
-          result.push(str[i]);
-          i++;
-        }
-      }
-      continue;
+        // 6. Clean unit multipliers (* 1, 1 *, \cdot 1, \times 1) and division by 1
+        current = current
+            .replace(/\s*(?:\*|\\cdot|\\times)\s*1(?!\d|\.)/g, '')
+            .replace(/(?<![\d\.[a-zA-Z\\])1\s*(?:\*|\\cdot|\\times)\s*/g, '')
+            .replace(/\s*\/\s*1(?!\d|\.)/g, '');
+
+        // 7. Remove explicit multiplication symbols before variables/parens/commands
+        // e.g., 5 * x -> 5x, 5 \cdot x -> 5x, (a) * (b) -> (a)(b)
+        current = current
+            .replace(/(\d+(?:\.\d+)?)\s*(?:\*|\\cdot|\\times)\s*([a-zA-Z\(]|\\(?:[a-zA-Z]+))/g, '$1$2')
+            .replace(/([a-zA-Z])\s*(?:\*|\\cdot|\\times)\s*([a-zA-Z\(]|\\(?:[a-zA-Z]+))/g, '$1$2')
+            .replace(/(\))\s*(?:\*|\\cdot|\\times)\s*([a-zA-Z\(]|\\(?:[a-zA-Z]+))/g, '$1$2');
+
+        // 8. Remove unit coefficients (e.g., 1x -> x, -1x -> -x, 1\alpha -> \alpha)
+        current = current.replace(/(?<![\d\.[a-zA-Z\\])1([a-zA-Z]|\\(?:[a-zA-Z]+))/g, '$1');
+
+        // 9. Clean zero terms in addition/subtraction (e.g., x + 0 -> x, x - 0 -> x, 0 + x -> x)
+        current = current
+            .replace(/(\+|\-)\s*0(?!\d|\.)/g, '')
+            .replace(/(?<![\d\.[a-zA-Z\\])0\s*\+\s*/g, '');
+
+        // 10. Normalize whitespace
+        current = current.replace(/\s+/g, ' ').trim();
     }
 
-    // Check for redundant scalar wrapper braces/brackets (e.g., {-2}, (15), [-7])
-    if (str[i] === '{' || str[i] === '(' || str[i] === '[') {
-      const openChar = str[i];
-      const closeChar = openChar === '{' ? '}' : openChar === '(' ? ')' : ']';
-      const end = findMatchingBracket(str, i, openChar, closeChar);
+    return current;
+}
 
-      if (end !== -1) {
-        const inner = str.slice(i + 1, end).trim();
+/**
+ * Safely unwraps single-term scalar braces (e.g., {-3} -> -3, {+1} -> +1).
+ * Preserves structural macro arguments (\sqrt{x}, \frac{1}{2}) and subscripts/superscripts (x_{-3}).
+ */
+function unwrapRedundantBraces(str: string): string {
+    const braceRegex = /\{\s*([\+\-]?\s*(?:\d+(?:\.\d+)?|[a-zA-Z]|\\(?:[a-zA-Z]+)))\s*\}/g;
 
-        // ONLY strip wrappers that surround purely a single signed scalar value/variable
-        // I don't think it matches complex environments, matrix rows, or nested lists
-        const isSingleScalar = /^[\+\-]?\s*(?:\d+(?:\.\d+)?|[a-zA-Z]|\\(?:[a-zA-Z]+))$/.test(inner);
+    return str.replace(braceRegex, (match, inner, offset, fullStr) => {
+        const prefix = fullStr.slice(0, offset);
 
-        // Don't strip braces if they are preceded by subscript _, superscript ^, or LaTeX identifiers
-        const isSubOrSuper = i > 0 && (str[i - 1] === '^' || str[i - 1] === '_');
-
-        if (isSingleScalar && !isSubOrSuper) {
-          result.push(inner);
-          i = end + 1;
-          continue;
+        if (isStructuralBrace(prefix)) {
+            return match;
         }
-      }
+
+        return inner.replace(/\s+/g, '');
+    });
+}
+
+function isStructuralBrace(prefix: string): boolean {
+    // 1. Subscript or superscript: x_{-3}, x^{-3}
+    if (/[_\^]\s*$/.test(prefix)) return true;
+
+    // 2. Direct argument to structural/formatting LaTeX macros (\sqrt, \frac, \begin, \vec, etc.)
+    if (/\\(frac|dfrac|tfrac|binom|dbinom|tbinom|sqrt|vec|mathbf|mathrm|text|textbf|textit|overline|underline|hat|tilde|bar|dot|ddot|begin|end|operatorname|overset|underset)\s*$/.test(prefix)) {
+        return true;
     }
 
-    result.push(str[i]);
-    i++;
-  }
+    // 3. Second argument of 2-argument macros: \frac{a}{-3}, \binom{n}{-3}
+    if (/\\(frac|dfrac|tfrac|binom|dbinom|tbinom|overset|underset)\s*\{[^{}]*\}\s*$/.test(prefix)) {
+        return true;
+    }
 
-  return result.join('');
-}
-
-function findMatchingBracket(str: string, start: number, open: string, close: string): number {
-  let depth = 0;
-  for (let i = start; i < str.length; i++) {
-    if (str[i] === open) depth++;
-    else if (str[i] === close) depth--;
-    if (depth === 0) return i;
-  }
-  return -1;
-}
-
-function simplifySigns(str: string): string {
-  return str
-    // Sign interactions with bracketed negative numbers (e.g., -(-5) -> +5, +(-5) -> -5)
-    .replace(/-\s*\(\s*-\s*([^\)]+)\s*\)/g, '+$1')
-    .replace(/\+\s*\(\s*-\s*([^\)]+)\s*\)/g, '-$1')
-    .replace(/-\s*\(\s*\+\s*([^\)]+)\s*\)/g, '-$1')
-    .replace(/\+\s*\(\s*\+\s*([^\)]+)\s*\)/g, '+$1')
-    // Adjacent double signs
-    .replace(/\+\s*-\s*/g, '-')
-    .replace(/-\s*\+\s*/g, '-')
-    .replace(/-\s*-\s*/g, '+')
-    .replace(/\+\s*\+\s*/g, '+');
+    return false;
 }

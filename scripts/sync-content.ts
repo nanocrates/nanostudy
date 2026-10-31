@@ -2,99 +2,13 @@ import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { config } from 'dotenv';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, or } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import JSON5 from 'json5';
 
 import * as schema from '../src/lib/server/db/schema';
-import type { ConstrainedVariable, DerivedVariable } from '../src/lib/server/db/schema';
-
-export type QuestionType = 'basic' | 'maths' | 'multistep' | 'multimaths';
-
-export interface BasicQuestionDef {
-  type: 'basic';
-  id: string;
-  prompt: string;
-  answers?: string[];
-  hint?: string | null;
-  explanation?: string | null;
-}
-
-export interface MathsQuestionDef {
-  type: 'maths';
-  id: string;
-  prompt: string;
-  constrained?: ConstrainedVariable[];
-  derived?: DerivedVariable[];
-  answers: string[];
-  hint?: string | null;
-  explanation?: string | null;
-  marking_type?: string | null;
-}
-
-export interface MultistepPartDef {
-  index: number;
-  question: string | BasicQuestionDef | MathsQuestionDef | MultistepQuestionDef;
-}
-
-export interface MultistepQuestionDef {
-  type: 'multistep';
-  id: string;
-  prompt: string;
-  parts: MultistepPartDef[];
-}
-
-export interface MultimathsPartDef {
-  index: number;
-  variable_mapping?: Record<string, string>;
-  question: string | MathsQuestionDef | MultimathsQuestionDef;
-}
-
-export interface MultimathsQuestionDef {
-  type: 'multimaths';
-  id: string;
-  prompt: string;
-  constrained?: ConstrainedVariable[];
-  derived?: DerivedVariable[];
-  parts: MultimathsPartDef[];
-}
-
-export type QuestionDef =
-  | BasicQuestionDef
-  | MathsQuestionDef
-  | MultistepQuestionDef
-  | MultimathsQuestionDef;
-
-export interface LessonDef {
-  id: string;
-  title: string;
-  read_content?: string | null;
-  prerequisites?: string[];
-  questions?: (string | QuestionDef)[];
-}
-
-export interface TopicDef {
-  topic_id: string;
-  title: string;
-  index: number;
-  lessons?: (string | LessonDef)[];
-}
-
-export interface CourseDef {
-  id: string;
-  title: string;
-  level?: string | null;
-  exam_board?: string | null;
-  grade_scale?: string | null;
-  topics?: TopicDef[];
-}
-
-export interface ContentPayload {
-  courses?: CourseDef[];
-  lessons?: LessonDef[];
-  questions?: QuestionDef[];
-}
 
 config({ path: '.env' });
 
@@ -103,266 +17,164 @@ const db = drizzle({ client, schema });
 
 const BATCH_SIZE = 500;
 
+const TABLE_ORDER = [
+  'courses',
+  'course_topics',
+  'lessons',
+  'topic_lessons',
+  'basic_questions',
+  'maths_questions',
+  'multistep_questions',
+  'multimaths_questions',
+  'multistep_question_parts',
+  'multimaths_question_parts',
+  'lesson_questions',
+] as const;
+
+function getPrimaryKeys(table: any): string[] {
+  const tableConfig = getTableConfig(table);
+  const pks = tableConfig.columns.filter((c: any) => c.primary).map((c: any) => c.name);
+  tableConfig.primaryKeys.forEach((pk: any) => {
+    pks.push(...pk.columns.map((c: any) => c.name));
+  });
+  return [...new Set(pks)];
+}
+
+function extractRow(table: any, raw: Record<string, any>): Record<string, any> {
+  const cols = getTableColumns(table);
+  const row: Record<string, any> = {};
+  for (const [key, col] of Object.entries(cols) as [string, any][]) {
+    if (raw[key] !== undefined && raw[key] !== null) {
+      row[key] = raw[key];
+    } else if (raw[key] === null) {
+      row[key] = null;
+    } else if (col.default !== undefined) {
+      row[key] = typeof col.default === 'function' ? col.default() : structuredClone(col.default);
+    } else {
+      row[key] = null;
+    }
+  }
+  return row;
+}
+
 function canonicalHash(obj: unknown): string {
   const stringifyDeterministic = (val: any): string => {
-    if (val === null || typeof val !== 'object') {
-      return JSON.stringify(val);
-    }
-    if (Array.isArray(val)) {
-      return `[${val.map(stringifyDeterministic).join(',')}]`;
-    }
+    if (val === null || typeof val !== 'object') return JSON.stringify(val);
+    if (Array.isArray(val)) return `[${val.map(stringifyDeterministic).join(',')}]`;
     const sortedKeys = Object.keys(val).sort();
-    const keyValues = sortedKeys.map(
-      (k) => `${JSON.stringify(k)}:${stringifyDeterministic(val[k])}`
-    );
-    return `{${keyValues.join(',')}}`;
+    return `{${sortedKeys.map((k) => `${JSON.stringify(k)}:${stringifyDeterministic(val[k])}`).join(',')}}`;
   };
-
   return createHash('sha256').update(stringifyDeterministic(obj)).digest('hex');
 }
 
-const stores = {
-  courses: new Map<string, typeof schema.courses.$inferInsert>(),
-  course_topics: new Map<string, typeof schema.course_topics.$inferInsert>(),
-  lessons: new Map<string, typeof schema.lessons.$inferInsert>(),
-  topic_lessons: new Map<string, typeof schema.topic_lessons.$inferInsert>(),
-  basic_questions: new Map<string, typeof schema.basic_questions.$inferInsert>(),
-  maths_questions: new Map<string, typeof schema.maths_questions.$inferInsert>(),
-  multistep_questions: new Map<string, typeof schema.multistep_questions.$inferInsert>(),
-  multistep_question_parts: new Map<string, typeof schema.multistep_question_parts.$inferInsert>(),
-  multimaths_questions: new Map<string, typeof schema.multimaths_questions.$inferInsert>(),
-  multimaths_question_parts: new Map<string, typeof schema.multimaths_question_parts.$inferInsert>(),
-  lesson_questions: new Map<string, typeof schema.lesson_questions.$inferInsert>(),
-};
+const stores = new Map<string, Map<string, any>>();
 
-function processQuestion(q: string | QuestionDef): string {
+function save(tableName: keyof typeof schema, raw: Record<string, any>) {
+  const table = schema[tableName] as any;
+  const row = extractRow(table, raw);
+  const pks = getPrimaryKeys(table);
+  const key = pks.map((pk) => String(row[pk])).join(':::');
+
+  if (!stores.has(tableName)) stores.set(tableName, new Map());
+  stores.get(tableName)!.set(key, row);
+}
+
+function processQuestion(q: any): string {
   if (typeof q === 'string') return q;
-  if (!q || !q.type) throw new Error(`Invalid question definition: ${JSON.stringify(q)}`);
+  if (!q?.type) throw new Error(`Invalid question definition: ${q.id}: ${JSON.stringify(q)}`);
 
-  switch (q.type) {
-    case 'basic':
-      stores.basic_questions.set(q.id, {
-        id: q.id,
-        prompt: q.prompt,
-        answers: q.answers ?? [],
-        hint: q.hint ?? null,
-        explanation: q.explanation ?? null,
-      });
-      break;
+  const type = q.type as 'basic' | 'maths' | 'multistep' | 'multimaths';
+  save(`${type}_questions` as any, q);
 
-    case 'maths':
-      stores.maths_questions.set(q.id, {
-        id: q.id,
-        prompt: q.prompt,
-        constrained: q.constrained ?? [],
-        derived: q.derived ?? [],
-        answers: q.answers,
-        hint: q.hint ?? null,
-        explanation: q.explanation ?? null,
-        marking_type: q.marking_type ?? null,
-      });
-      break;
+  q.parts?.forEach((part: any) => {
+    if (type === 'multimaths' && !part.question) {
+      throw new Error(`Multimaths part for question ${q.id} is missing a question definition for part index ${part.index}`);
+    }
+    const partQuestionId = processQuestion(part.question);
+    save(`${type}_question_parts` as any, {
+      [`${type}_id`]: q.id,
+      part_question_id: partQuestionId,
+      variable_mapping: part.variable_mapping,
+      index: part.index,
+    });
+  });
 
-      case 'multistep':
-      stores.multistep_questions.set(q.id, {
-        id: q.id,
-        prompt: q.prompt,
-      });
-      q.parts.forEach((part) => {
-        const partId = processQuestion(part.question);
-        const compositeKey = `${q.id}:${part.index}`;
-        stores.multistep_question_parts.set(compositeKey, {
-          multistep_id: q.id,
-          part_question_id: partId,
-          index: part.index,
-        });
-      });
-      break;
-
-    case 'multimaths':
-      stores.multimaths_questions.set(q.id, {
-        id: q.id,
-        prompt: q.prompt,
-        constrained: q.constrained ?? [],
-        derived: q.derived ?? [],
-      });
-      q.parts.forEach((part) => {
-        if (!part.question) throw new Error(`Multimaths part for question ${q.id} is missing a question definition for part index ${part.index}`);
-        const partId = processQuestion(part.question);
-        const compositeKey = `${q.id}:${part.index}`;
-        stores.multimaths_question_parts.set(compositeKey, {
-          multimaths_id: q.id,
-          part_question_id: partId,
-          variable_mapping: part.variable_mapping ?? {},
-          index: part.index,
-        });
-      });
-      break;
-  }
   return q.id;
 }
 
-function processLesson(
-  lesson: string | LessonDef,
-  courseId?: string,
-  topicId?: string
-): string {
+function processLesson(lesson: any, courseId?: string, topicId?: string): string {
   if (typeof lesson === 'string') {
-    if (courseId && topicId) {
-      const compositeKey = `${courseId}:${topicId}:${lesson}`;
-      stores.topic_lessons.set(compositeKey, {
-        course_id: courseId,
-        topic_id: topicId,
-        lesson_id: lesson,
-      });
-    }
+    if (courseId && topicId) save('topic_lessons', { course_id: courseId, topic_id: topicId, lesson_id: lesson });
     return lesson;
   }
 
-  stores.lessons.set(lesson.id, {
-    id: lesson.id,
-    title: lesson.title,
-    read_content: lesson.read_content ?? null,
-    prerequisites: lesson.prerequisites ?? [],
+  save('lessons', lesson);
+  if (courseId && topicId) save('topic_lessons', { course_id: courseId, topic_id: topicId, lesson_id: lesson.id });
+
+  lesson.questions?.forEach((q: any) => {
+    const qId = processQuestion(q);
+    save('lesson_questions', { lesson_id: lesson.id, question_id: qId });
   });
-
-  if (courseId && topicId) {
-    const compositeKey = `${courseId}:${topicId}:${lesson.id}`;
-    stores.topic_lessons.set(compositeKey, {
-      course_id: courseId,
-      topic_id: topicId,
-      lesson_id: lesson.id,
-    });
-  }
-
-  if (lesson.questions) {
-    for (const q of lesson.questions) {
-      const qId = processQuestion(q);
-      const compositeKey = `${lesson.id}:${qId}`;
-      stores.lesson_questions.set(compositeKey, {
-        lesson_id: lesson.id,
-        question_id: qId,
-      });
-    }
-  }
 
   return lesson.id;
 }
 
-function processTopic(topic: TopicDef, courseId: string) {
-  const compositeKey = `${topic.topic_id}:${courseId}`;
-  stores.course_topics.set(compositeKey, {
-    topic_id: topic.topic_id,
-    course_id: courseId,
-    title: topic.title,
-    index: topic.index,
-  });
-
-  if (topic.lessons) {
-    for (const lesson of topic.lessons) {
-      processLesson(lesson, courseId, topic.topic_id);
-    }
-  }
+function processTopic(topic: any, courseId: string) {
+  save('course_topics', { topic_id: topic.topic_id, course_id: courseId, title: topic.title, index: topic.index });
+  topic.lessons?.forEach((l: any) => processLesson(l, courseId, topic.topic_id));
 }
 
-function processCourse(course: CourseDef) {
-  stores.courses.set(course.id, {
-    id: course.id,
-    title: course.title,
-    level: course.level ?? null,
-    exam_board: course.exam_board ?? null,
-    grade_scale: course.grade_scale ?? null,
-  });
-
-  if (course.topics) {
-    for (const topic of course.topics) {
-      processTopic(topic, course.id);
-    }
-  }
+function processCourse(course: any) {
+  save('courses', course);
+  course.topics?.forEach((t: any) => processTopic(t, course.id));
 }
 
-function normalizePayload(payload: ContentPayload) {
-  if (payload.questions) payload.questions.forEach(processQuestion);
-  if (payload.lessons) payload.lessons.forEach((l) => processLesson(l));
-  if (payload.courses) payload.courses.forEach(processCourse);
+function normalizePayload(payload: any) {
+  payload.questions?.forEach(processQuestion);
+  payload.lessons?.forEach((l: any) => processLesson(l));
+  payload.courses?.forEach(processCourse);
 }
 
-interface SyncConfig<T> {
-  tableName: string;
-  table: any;
-  incomingItems: T[];
-  primaryKeys: (keyof T)[];
-}
-
-function getCompositeStringKey<T>(item: T, primaryKeys: (keyof T)[]): string {
-  return primaryKeys.map((pk) => String(item[pk])).join(':::');
-}
-
-async function computeDiff<T extends Record<string, any>>(config: SyncConfig<T>) {
-  const { table, incomingItems, primaryKeys } = config;
-
+async function computeDiff(table: any, primaryKeys: string[], incomingItems: any[]) {
   const dbRows = await db.select().from(table);
+  const getKey = (item: any) => primaryKeys.map((pk) => String(item[pk])).join(':::');
 
-  const dbMap = new Map<string, T>();
-  for (const row of dbRows) {
-    dbMap.set(getCompositeStringKey(row, primaryKeys), row as T);
-  }
+  const dbMap = new Map(dbRows.map((r: any) => [getKey(r), r]));
+  const incomingMap = new Map(incomingItems.map((i: any) => [getKey(i), i]));
 
-  const incomingMap = new Map<string, T>();
-  for (const item of incomingItems) {
-    incomingMap.set(getCompositeStringKey(item, primaryKeys), item);
-  }
-
-  const toInsert: T[] = [];
-  const toUpdate: T[] = [];
+  const toInsert: any[] = [];
+  const toUpdate: any[] = [];
   let skipped = 0;
 
   for (const [key, incomingItem] of incomingMap.entries()) {
     const existing = dbMap.get(key);
     if (!existing) {
       toInsert.push(incomingItem);
+    } else if (canonicalHash(existing) !== canonicalHash({ ...existing, ...incomingItem })) {
+      toUpdate.push(incomingItem);
     } else {
-      const existingHash = canonicalHash(existing);
-      const incomingHash = canonicalHash({ ...existing, ...incomingItem });
-
-      if (existingHash !== incomingHash) {
-        toUpdate.push(incomingItem);
-      } else {
-        skipped++;
-      }
+      skipped++;
     }
   }
 
-  const toDelete: T[] = [];
-  for (const [key, dbItem] of dbMap.entries()) {
-    if (!incomingMap.has(key)) {
-      toDelete.push(dbItem);
-    }
-  }
-
+  const toDelete = dbRows.filter((r: any) => !incomingMap.has(getKey(r)));
   return { toInsert, toUpdate, toDelete, skipped };
 }
 
-async function applyUpserts<T extends Record<string, any>>(
-  config: SyncConfig<T>,
-  diff: { toInsert: T[]; toUpdate: T[] }
+async function applyUpserts(
+  tableName: string,
+  table: any,
+  primaryKeys: string[],
+  toInsert: any[],
+  toUpdate: any[]
 ) {
-  const { tableName, table, primaryKeys } = config;
-  const { toInsert, toUpdate } = diff;
-
   for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
-    const chunk = toInsert.slice(i, i + BATCH_SIZE);
-    await db.insert(table).values(chunk);
+    await db.insert(table).values(toInsert.slice(i, i + BATCH_SIZE));
   }
 
   for (const item of toUpdate) {
-    const whereConditions = primaryKeys.map((pk) =>
-      eq(table[pk as string], item[pk])
-    );
-    await db
-      .update(table)
-      .set(item)
-      .where(and(...whereConditions));
+    const where = and(...primaryKeys.map((pk) => eq(table[pk], item[pk])));
+    await db.update(table).set(item).where(where);
   }
 
   if (toInsert.length > 0 || toUpdate.length > 0) {
@@ -370,27 +182,25 @@ async function applyUpserts<T extends Record<string, any>>(
   }
 }
 
-async function applyDeletions<T extends Record<string, any>>(
-  config: SyncConfig<T>,
-  toDelete: T[]
+async function applyDeletions(
+  tableName: string,
+  table: any,
+  primaryKeys: string[],
+  toDelete: any[]
 ) {
-  const { tableName, table, primaryKeys } = config;
-
   if (toDelete.length === 0) return;
 
   if (primaryKeys.length === 1) {
-    const pk = primaryKeys[0] as string;
+    const pk = primaryKeys[0];
     const deleteIds = toDelete.map((item) => item[pk]);
-
     for (let i = 0; i < deleteIds.length; i += BATCH_SIZE) {
-      const chunk = deleteIds.slice(i, i + BATCH_SIZE);
-      await db.delete(table).where(inArray(table[pk], chunk));
+      await db.delete(table).where(inArray(table[pk], deleteIds.slice(i, i + BATCH_SIZE)));
     }
   } else {
     for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
       const chunk = toDelete.slice(i, i + BATCH_SIZE);
       const conditions = chunk.map((item) =>
-        and(...primaryKeys.map((pk) => eq(table[pk as string], item[pk])))
+        and(...primaryKeys.map((pk) => eq(table[pk], item[pk])))
       );
       await db.delete(table).where(or(...conditions));
     }
@@ -401,50 +211,42 @@ async function applyDeletions<T extends Record<string, any>>(
 
 async function runSync() {
   const startTime = Date.now();
-  const filePath = resolve(process.cwd(), process.argv[2] || 'content.json');
+  const filePath = resolve(process.cwd(), process.argv[2] || 'content.json5');
   console.log(`Loading content from ${filePath}...`);
 
   const fileData = readFileSync(filePath, 'utf-8');
-  const payload: ContentPayload = JSON5.parse(fileData);
+  const payload = JSON5.parse(fileData);
 
   normalizePayload(payload);
 
   console.log('Calculating diffs against database...\n');
 
-  const configs: SyncConfig<any>[] = [
-    { tableName: 'courses', table: schema.courses, incomingItems: Array.from(stores.courses.values()), primaryKeys: ['id'] },
-    { tableName: 'course_topics', table: schema.course_topics, incomingItems: Array.from(stores.course_topics.values()), primaryKeys: ['topic_id', 'course_id'] },
-    { tableName: 'lessons', table: schema.lessons, incomingItems: Array.from(stores.lessons.values()), primaryKeys: ['id'] },
-    { tableName: 'topic_lessons', table: schema.topic_lessons, incomingItems: Array.from(stores.topic_lessons.values()), primaryKeys: ['course_id', 'topic_id', 'lesson_id'] },
+  const diffs = new Map<string, { toInsert: any[]; toUpdate: any[]; toDelete: any[]; skipped: number }>();
 
-    { tableName: 'basic_questions', table: schema.basic_questions, incomingItems: Array.from(stores.basic_questions.values()), primaryKeys: ['id'] },
-    { tableName: 'maths_questions', table: schema.maths_questions, incomingItems: Array.from(stores.maths_questions.values()), primaryKeys: ['id'] },
-    { tableName: 'multistep_questions', table: schema.multistep_questions, incomingItems: Array.from(stores.multistep_questions.values()), primaryKeys: ['id'] },
-    { tableName: 'multimaths_questions', table: schema.multimaths_questions, incomingItems: Array.from(stores.multimaths_questions.values()), primaryKeys: ['id'] },
+  for (const tableName of TABLE_ORDER) {
+    const table = schema[tableName];
+    const primaryKeys = getPrimaryKeys(table);
+    const incomingItems = Array.from(stores.get(tableName)?.values() || []);
 
-    { tableName: 'multistep_question_parts', table: schema.multistep_question_parts, incomingItems: Array.from(stores.multistep_question_parts.values()), primaryKeys: ['multistep_id', 'index'] },
-    { tableName: 'multimaths_question_parts', table: schema.multimaths_question_parts, incomingItems: Array.from(stores.multimaths_question_parts.values()), primaryKeys: ['multimaths_id', 'index'] },
-    { tableName: 'lesson_questions', table: schema.lesson_questions, incomingItems: Array.from(stores.lesson_questions.values()), primaryKeys: ['lesson_id', 'question_id'] },
-  ];
-
-  const diffMap = new Map();
-  for (const cfg of configs) {
-    const diff = await computeDiff(cfg);
-    diffMap.set(cfg.tableName, diff);
-    console.log(`[${cfg.tableName}] Skipped (Unchanged): ${diff.skipped}`);
+    const diff = await computeDiff(table, primaryKeys, incomingItems);
+    diffs.set(tableName, diff);
+    console.log(`[${tableName}] Skipped (Unchanged): ${diff.skipped}`);
   }
 
   console.log('\nApplying insertions and updates (Top-Down)...');
-  for (const cfg of configs) {
-    const diff = diffMap.get(cfg.tableName);
-    await applyUpserts(cfg, diff);
+  for (const tableName of TABLE_ORDER) {
+    const table = schema[tableName];
+    const primaryKeys = getPrimaryKeys(table);
+    const { toInsert, toUpdate } = diffs.get(tableName)!;
+    await applyUpserts(tableName, table, primaryKeys, toInsert, toUpdate);
   }
 
   console.log('\nPruning removed entities (Bottom-Up)...');
-  const reverseConfigs = [...configs].reverse();
-  for (const cfg of reverseConfigs) {
-    const diff = diffMap.get(cfg.tableName);
-    await applyDeletions(cfg, diff.toDelete);
+  for (const tableName of [...TABLE_ORDER].reverse()) {
+    const table = schema[tableName];
+    const primaryKeys = getPrimaryKeys(table);
+    const { toDelete } = diffs.get(tableName)!;
+    await applyDeletions(tableName, table, primaryKeys, toDelete);
   }
 
   console.log(`\nSync finished successfully in ${((Date.now() - startTime) / 1000).toFixed(2)}s.`);

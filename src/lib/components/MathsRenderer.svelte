@@ -1,4 +1,5 @@
 <script>
+    // TODO: This script is mostly AI-generated. It will be fully rewritten manually before production use and NEA submission.
     import katex from 'katex';
     import 'katex/dist/katex.min.css';
 
