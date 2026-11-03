@@ -1,7 +1,7 @@
 import type { ConstrainedVariable, DerivedVariable } from "$lib/server/db/schema";
 import { MathsQuestion } from "$lib/types/question";
 import { MathsAnswer, type GeneratedVariable } from "$lib/types/question/maths";
-import { evaluate, parse, simplify } from "mathjs";
+import { parse, simplify } from "mathjs";
 import { convertLatexToAsciiMath } from "mathlive";
 import { latexToAscii, simplifyAbnormalities } from "./simplify";
 
@@ -125,26 +125,25 @@ export function insertVariablesIntoExpression(expression: string, variables: Gen
 
 export function evaluateDerivedVariable(derivedVariable: DerivedVariable, variables: GeneratedVariable[]): GeneratedVariable {
     const expressionWithValues = insertVariablesIntoExpression(derivedVariable.expression, variables);
-    let asciiMathExpression = latexToAscii(expressionWithValues);
+    const parsedExpression = latexToAscii(expressionWithValues);
 
-    const parsedExpression = parse(asciiMathExpression);
     if (parsedExpression.toString() === "undefined" || parsedExpression.toString() === "null") {
-        throw new SyntaxError(`Derived variable ${derivedVariable.name} has an syntactically invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, asciiMathExpression } });
+        throw new SyntaxError(`Derived variable ${derivedVariable.name} has an syntactically invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, parsedExpression } });
     }
     let evaluatedValue: string;
     try {
-        evaluatedValue = simplify(asciiMathExpression).toString();
+        evaluatedValue = simplify(parsedExpression).toString();
     } catch (error) {
         try {
-            evaluatedValue = evaluate(asciiMathExpression).toString();
+            evaluatedValue = parsedExpression.evaluate().toString();
         } catch (error) {
-            throw new SyntaxError(`Derived variable ${derivedVariable.name} has an invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, asciiMathExpression, error } });
+            throw new SyntaxError(`Derived variable ${derivedVariable.name} has an invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, parsedExpression, error } });
         }
     }
 
     if (evaluatedValue === "undefined" || evaluatedValue === "null" || evaluatedValue === Infinity.toString() || evaluatedValue === (-Infinity).toString()) {
-        console.log("Derived variable evaluation failed:", { derivedVariable, asciiMathExpression, evaluatedValue });
-        throw new Error(`Derived variable ${derivedVariable.name} evaluated to an invalid value: ${evaluatedValue}`, { cause: { derivedVariable, asciiMathExpression, evaluatedValue } });
+        console.log("Derived variable evaluation failed:", { derivedVariable, parsedExpression, evaluatedValue });
+        throw new Error(`Derived variable ${derivedVariable.name} evaluated to an invalid value: ${evaluatedValue}`, { cause: { derivedVariable, parsedExpression, evaluatedValue } });
     }
 
     return {

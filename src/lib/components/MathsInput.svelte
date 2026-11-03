@@ -35,7 +35,10 @@
 </script>
 
 <div class="input-container">
-  <math-field use:init {...rest}></math-field>
+  <math-field
+    onkeydown={(e) => e.key === "Enter" && submitInputBox()}
+    use:init {...rest}
+  ></math-field>
   <button class="btn btn-accent" onclick={submitInputBox}>Submit</button>
 </div>
 

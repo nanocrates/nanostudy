@@ -4,11 +4,26 @@
     import favicon from '$lib/assets/favicon.svg';
 
     let { children } = $props();
+    import { onMount } from 'svelte';
 
     $effect(() => {
         const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
         //const theme = isLight ? 'light-mode' : 'dark-mode';
         //document.documentElement.classList.add(theme);
+    });
+
+    onMount(async () => {
+        const { MathfieldElement } = await import('mathlive');
+
+        MathfieldElement.macros = {
+            ...MathfieldElement.macros,
+            matrix: { def: '\\begin{bmatrix}#1\\end{bmatrix}' }
+        };
+
+        MathfieldElement.inlineShortcuts = {
+            ...MathfieldElement.inlineShortcuts,
+            matrix: '\\begin{bmatrix} \\placeholder{} & \\placeholder{} \\\\ \\placeholder{} & \\placeholder{} \\end{bmatrix}'
+        };
     });
 </script>
 

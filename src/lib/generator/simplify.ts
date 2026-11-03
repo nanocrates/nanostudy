@@ -1,17 +1,16 @@
-import { convertLatexToAsciiMath } from "mathlive";
+import type { MathNode } from "mathjs";
 
-export function latexToAscii(latex: string): string {
-    let asciiMathExpression = convertLatexToAsciiMath(latex);
-    asciiMathExpression = asciiMathExpression.replaceAll('∗', '*');
-    if (asciiMathExpression.startsWith('((') && asciiMathExpression.endsWith('))')) {
-        asciiMathExpression = asciiMathExpression
-        .replace(/^\(\(/, '[[')
-                     .replace(/\)\)$/, ']]')
-                     .replaceAll('),(', '],[');
-    }
-    return asciiMathExpression;
+import { parseTex } from "tex-math-parser";
+import { simplify } from "mathjs";
+
+export function latexToAscii(latex: string): MathNode {                           
+    const sanitisedLatex = latex
+                    .replaceAll("\\cdot", "*")
+                    .replaceAll("\\times", "*")
+                    .replaceAll("pmatrix", "bmatrix");
+    console.log(sanitisedLatex, "sanitisedLatex");
+    return simplify(parseTex(sanitisedLatex));
 }
-
 
 export function simplifyAbnormalities(expression: string): string {
     if (!expression) return '';

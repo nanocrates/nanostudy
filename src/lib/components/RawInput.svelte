@@ -6,9 +6,10 @@
   let { submit }: Props = $props();
   let inputBox: HTMLInputElement | undefined = $state();
 
-  function submitInputBox() {
-    if (inputBox) {
-      submit(inputBox.value);
+  function handleKeydown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitInputBox();
     }
   }
 </script>
