@@ -5,6 +5,7 @@
     "": {
       "name": "nanostudy",
       "dependencies": {
+        "@cortex-js/compute-engine": "^0.178.0",
         "@khanacademy/kas": "^3.0.2",
         "@rod2ik/tikzjax": "^1.6.0",
         "dotenv": "^18.0.1",
@@ -38,7 +39,11 @@
     },
   },
   "packages": {
+    "@arnog/colors": ["@arnog/colors@0.7.3", "", {}, "sha512-D7h3f498cu68+pI54eNl1UIm5xbs1uX5ggBTuFpLs3YQ17lqlWAmJ6d+tuvyLvJEzciN2YYR6D+9K8NfBGJGkQ=="],
+
     "@babel/runtime": ["@babel/runtime@7.29.10", "", {}, "sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA=="],
+
+    "@cortex-js/compute-engine": ["@cortex-js/compute-engine@0.178.0", "", { "dependencies": { "@arnog/colors": "^0.7.3", "complex.js": "^2.4.3" }, "bin": { "epsil": "dist/esm-min/cli/epsil.js" } }, "sha512-BFoCLWUC0wPGiRt8dGrrVBzyCgpF8GolDQWG7zm/1BXchnxDu9MmukS9kacBWzBgdwKDbaE1XQaUF3nGsy3m9A=="],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.12.1", "", {}, "sha512-yHwomvolVafvUXhy5TdiJVkuNCxXn+bKOs2aWiWEQh/5YaV97Oa/abJz3dmx7lxgIUsUlS1Jl4mEfvJPo3YsVw=="],
 

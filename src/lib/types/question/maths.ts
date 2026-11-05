@@ -1,9 +1,9 @@
 import { fetchMathsQuestionById } from "$lib/api/question.remote";
 import { Question } from "$lib/types/question/question";
 import { Answer } from "$lib/types/question/answer";
-import { compare, evaluate, number, parse, round, symbolicEqual } from "mathjs";
-import { convertLatexToAsciiMath } from "mathlive";
-import { latexToAscii, simplifyAbnormalities } from "$lib/generator/simplify";
+import { evaluate, number, round } from "mathjs";
+import { parse } from "@cortex-js/compute-engine"
+import { parseTex } from "$lib/generator/simplify";
 
 export type GeneratedVariable = {
     name: string;
@@ -68,18 +68,20 @@ export class MathsAnswer extends Answer {
     }
 
     public isCorrectCas(studentAnswer: string, requireForm: boolean = true): boolean {
-        const studentExpr = latexToAscii(studentAnswer);
+        const studentExpr = parse(studentAnswer);
         if (studentExpr == undefined || studentExpr == null) {
             console.log("Failed to parse student answer, their raw latex answer was", studentAnswer);
         }
         for (const validAnswer of this.validAnswers) {
-            let answerExpr = latexToAscii(validAnswer);
+            let validExpr = parseTex(validAnswer);
             console.log(`Checking student answer (raw was '${studentAnswer}') against valid answer (raw is '${validAnswer}')`);
-            console.log(answerExpr);
-            const result = symbolicEqual(answerExpr, studentExpr);
-            //if (requireForm && studentExpr.mat)
-            if (result) {
-                return true;
+            console.log(validExpr);
+            if (!requireForm) {
+                const identityResult = studentExpr.isIdenticallyEqual(validExpr);
+                if (identityResult) return true;
+            } else {
+                const formResult = studentExpr.isSame(validExpr);
+                if (formResult) return true;
             }
         }
         return false;

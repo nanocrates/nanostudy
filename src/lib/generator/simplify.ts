@@ -1,15 +1,13 @@
-import type { MathNode } from "mathjs";
+import { type Expression, simplify } from "@cortex-js/compute-engine";
 
-import { parseTex } from "tex-math-parser";
-import { simplify } from "mathjs";
+export function parseTex(tex: string): Expression {
+    const simplifiedTex = tex
+        .replaceAll("\\begin{pmatrix}", "(\\begin{pmatrix}")
+        .replaceAll("\\end{pmatrix}", "\\end{pmatrix})");
 
-export function latexToAscii(latex: string): MathNode {                           
-    const sanitisedLatex = latex
-                    .replaceAll("\\cdot", "*")
-                    .replaceAll("\\times", "*")
-                    .replaceAll("pmatrix", "bmatrix");
-    console.log(sanitisedLatex, "sanitisedLatex");
-    return simplify(parseTex(sanitisedLatex));
+    console.log(simplifiedTex, "simplifiedTex");
+
+    return simplify(simplifiedTex);
 }
 
 export function simplifyAbnormalities(expression: string): string {

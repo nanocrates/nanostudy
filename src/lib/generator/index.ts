@@ -1,9 +1,8 @@
 import type { ConstrainedVariable, DerivedVariable } from "$lib/server/db/schema";
 import { MathsQuestion } from "$lib/types/question";
 import { MathsAnswer, type GeneratedVariable } from "$lib/types/question/maths";
-import { parse, simplify } from "mathjs";
-import { convertLatexToAsciiMath } from "mathlive";
-import { latexToAscii, simplifyAbnormalities } from "./simplify";
+import { evaluate, simplify } from "@cortex-js/compute-engine";
+import { parseTex, simplifyAbnormalities } from "./simplify";
 
 export class MathsQuestionTemplate {
     readonly type: string = "maths-template";
@@ -92,10 +91,9 @@ export function validateConstraint(constraint: string, variables: GeneratedVaria
     let evaluatedValue: string;
     try {
         let expressionWithValues = insertVariablesIntoExpression(constraint, variables);
-        let asciiMathExpression = convertLatexToAsciiMath(expressionWithValues);
-        asciiMathExpression = asciiMathExpression.replaceAll('∗', '*');
-        const parsedExpression = parse(asciiMathExpression);
-        evaluatedValue = simplify(parsedExpression).toString();
+        let parsedExpression = parseTex(expressionWithValues);
+        evaluatedValue = evaluate(parsedExpression).toNumericValue().toString();
+        console.log(evaluatedValue, "evaluatedValue in constraint")
     } catch (error) {
         console.error(`Schema error evaluating constraint ${constraint} with variables ${JSON.stringify(variables)}: ${error}`);
         throw new SyntaxError("Constraint is syntactically invalid: " + error);
@@ -125,30 +123,11 @@ export function insertVariablesIntoExpression(expression: string, variables: Gen
 
 export function evaluateDerivedVariable(derivedVariable: DerivedVariable, variables: GeneratedVariable[]): GeneratedVariable {
     const expressionWithValues = insertVariablesIntoExpression(derivedVariable.expression, variables);
-    const parsedExpression = latexToAscii(expressionWithValues);
-
-    if (parsedExpression.toString() === "undefined" || parsedExpression.toString() === "null") {
-        throw new SyntaxError(`Derived variable ${derivedVariable.name} has an syntactically invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, parsedExpression } });
-    }
-    let evaluatedValue: string;
-    try {
-        evaluatedValue = simplify(parsedExpression).toString();
-    } catch (error) {
-        try {
-            evaluatedValue = parsedExpression.evaluate().toString();
-        } catch (error) {
-            throw new SyntaxError(`Derived variable ${derivedVariable.name} has an invalid expression: ${derivedVariable.expression}.`, { cause: { derivedVariable, parsedExpression, error } });
-        }
-    }
-
-    if (evaluatedValue === "undefined" || evaluatedValue === "null" || evaluatedValue === Infinity.toString() || evaluatedValue === (-Infinity).toString()) {
-        console.log("Derived variable evaluation failed:", { derivedVariable, parsedExpression, evaluatedValue });
-        throw new Error(`Derived variable ${derivedVariable.name} evaluated to an invalid value: ${evaluatedValue}`, { cause: { derivedVariable, parsedExpression, evaluatedValue } });
-    }
+    const value = simplify(expressionWithValues);
 
     return {
         name: derivedVariable.name,
-        value: evaluatedValue,
+        value: value.toLatex(),
     };
 }
 
