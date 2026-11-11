@@ -1,9 +1,9 @@
 <script lang="ts">
     let { question, submit } = $props();
-
     import { AnswerSubmissionResult } from "$lib/types/question";
 
     import QuestionWorkspace from "$lib/components/QuestionWorkspace.svelte";
+    import MultimathsQuestionDisplay from "$lib/components/MultimathsQuestionDisplay.svelte";
     import RawInput from "$lib/components/RawInput.svelte";
     import AnswerFeedback from "$lib/components/AnswerFeedback.svelte";
     import QuestionPreview from "$lib/components/QuestionPreview.svelte";
@@ -38,6 +38,8 @@ async function finishQuestion() {
     submit(result);
 }
 </script>
+
+<MultimathsQuestionDisplay {question} />
 
 {#each question.steps.slice(0, currentStepIndex-1) as step, stepIndex}
 <QuestionPreview question={step} />

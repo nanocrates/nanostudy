@@ -1,6 +1,6 @@
 import { query } from '$app/server';
 import { db } from '$lib/server/db';
-import { basic_questions, multistep_questions, multistep_question_parts, maths_questions } from '$lib/server/db/schema';
+import { basic_questions, multistep_questions, multistep_question_parts, maths_questions, cloze_questions } from '$lib/server/db/schema';
 import { BasicQuestion, Question, AnswerSubmissionResult, MultistepQuestion, MathsQuestion } from '$lib/types/question';
 import { sql } from 'drizzle-orm';
 import * as v from 'valibot';
@@ -8,6 +8,7 @@ import { error } from '@sveltejs/kit';
 import { BasicAnswer } from '$lib/types/question';
 import { MathsQuestionTemplate } from '$lib/generator';
 import { fetchMultimathsQuestionByIdHandle } from '$lib/server/db/query';
+import { ClozeAnswer, ClozeQuestion } from '$lib/types/question/cloze';
 
 export const fetchBasicQuestionById = query(
     v.object({
@@ -28,6 +29,29 @@ export const fetchBasicQuestionById = query(
             bq.id,
             bq.prompt,
             new BasicAnswer(bq.answers, bq.hint, bq.explanation),
+        );
+    }
+);
+
+export const fetchClozeQuestionById = query(
+    v.object({
+        questionId: v.string(),
+    }),
+    async ({ questionId }): Promise<ClozeQuestion | null> => {
+        const clozeQuestionData = await db.execute<typeof cloze_questions.$inferSelect>(sql`
+            SELECT *
+            FROM ${cloze_questions}
+            WHERE ${cloze_questions.id} = ${questionId}
+        `);
+        const bq = clozeQuestionData[0];
+        if (!bq) {
+            return null;
+        }
+
+        return new ClozeQuestion(
+            bq.id,
+            bq.prompt,
+            new ClozeAnswer(bq.answers, bq.hint, bq.explanation),
         );
     }
 );

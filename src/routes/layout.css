@@ -327,3 +327,9 @@ hr {
     padding-left: 0.25rem;
     padding-bottom: 0.75rem;
 }
+
+.answer-display {
+    font-weight: bold;
+    color : var(--nano-fg-accent-color);
+    text-decoration: underline;
+}

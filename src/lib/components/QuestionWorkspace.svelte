@@ -3,6 +3,7 @@
     import { checkAnswer } from "$lib/api/question.remote.ts";
     import QuestionDisplay from "$lib/components/QuestionDisplay.svelte";
     import BasicQuestionWorkspace from "$lib/components/BasicQuestionWorkspace.svelte";
+    import ClozeQuestionWorkspace from "$lib/components/ClozeQuestionWorkspace.svelte";
     import MultistepQuestionWorkspace from "$lib/components/MultistepQuestionWorkspace.svelte";
     import MathsQuestionWorkspace from "$lib/components/MathsQuestionWorkspace.svelte";
     import MultimathsQuestionWorkspace from "$lib/components/MultimathsQuestionWorkspace.svelte";
@@ -32,10 +33,10 @@
 
 <div class="card">
 
-<QuestionDisplay {question} />
-
 {#if question.type === "basic"}
 <BasicQuestionWorkspace {question} submit={submitAnswer} />
+{:else if question.type === "cloze"}
+<ClozeQuestionWorkspace {question} submit={submitAnswer} />
 {:else if question.type === "multistep"}
 <MultistepQuestionWorkspace {question} submit={submitAnswer} />
 {:else if question.type === "maths"}

@@ -12,6 +12,12 @@
       submitInputBox();
     }
   }
+
+  function submitInputBox() {
+    const value = inputBox.value.trim();
+    submit(value);
+    inputBox.value = ''; // maybe remove this?
+  }
 </script>
 
 <div class="input-container">

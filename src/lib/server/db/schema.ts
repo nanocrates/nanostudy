@@ -57,6 +57,14 @@ export const basic_questions = pgTable("basic_questions", {
   explanation: text("explanation"),
 }).enableRLS();
 
+export const cloze_questions = pgTable("cloze_questions", {
+  id: text("id").primaryKey(),
+  prompt: text("prompt").notNull(),
+  answers: jsonb("answers").$type<string[][]>().notNull().default([]),
+  hint: text("hint"),
+  explanation: text("explanation"),
+}).enableRLS();
+
 export const maths_questions = pgTable("maths_questions", {
   id: text("id").primaryKey(),
   prompt: text("prompt").notNull(),

@@ -5,4 +5,5 @@
     import RawInput from "$lib/components/RawInput.svelte";
 </script>
 
+<BasicQuestionDisplay {question} />
 <RawInput submit={submit} />

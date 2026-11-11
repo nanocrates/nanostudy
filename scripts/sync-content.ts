@@ -23,6 +23,7 @@ const TABLE_ORDER = [
   'lessons',
   'topic_lessons',
   'basic_questions',
+  'cloze_questions',
   'maths_questions',
   'multistep_questions',
   'multimaths_questions',
@@ -83,7 +84,7 @@ function processQuestion(q: any): string {
   if (typeof q === 'string') return q;
   if (!q?.type) throw new Error(`Invalid question definition: ${q.id}: ${JSON.stringify(q)}`);
 
-  const type = q.type as 'basic' | 'maths' | 'multistep' | 'multimaths';
+  const type = q.type as 'basic' | 'cloze' | 'maths' | 'multistep' | 'multimaths';
   save(`${type}_questions` as any, q);
 
   q.parts?.forEach((part: any) => {

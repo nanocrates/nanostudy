@@ -13,6 +13,10 @@ export abstract class Question<T extends Answer = Answer> {
         let question = await BasicQuestion.load(id); 
         if (question) return question; 
 
+        const { ClozeQuestion } = await import("./cloze");
+        question = await ClozeQuestion.load(id); 
+        if (question) return question; 
+
         const { MultistepQuestion } = await import("./multistep");
         question = await MultistepQuestion.load(id); 
         if (question) return question; 
