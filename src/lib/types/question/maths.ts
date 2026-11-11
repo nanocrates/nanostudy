@@ -68,14 +68,17 @@ export class MathsAnswer extends Answer {
     }
 
     public isCorrectCas(studentAnswer: string, requireForm: boolean = true): boolean {
-        const studentExpr = parse(studentAnswer);
+        const studentExpr = parseTex(studentAnswer);
+            console.log(studentAnswer, "studentAnswer");
         if (studentExpr == undefined || studentExpr == null) {
             console.log("Failed to parse student answer, their raw latex answer was", studentAnswer);
         }
         for (const validAnswer of this.validAnswers) {
+            console.log(validAnswer, "validAnswer");
             let validExpr = parseTex(validAnswer);
             console.log(`Checking student answer (raw was '${studentAnswer}') against valid answer (raw is '${validAnswer}')`);
             console.log(validExpr);
+            console.log(studentExpr);
             if (!requireForm) {
                 const identityResult = studentExpr.isIdenticallyEqual(validExpr);
                 if (identityResult) return true;

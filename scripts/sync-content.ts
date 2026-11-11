@@ -211,7 +211,7 @@ async function applyDeletions(
 
 async function runSync() {
   const startTime = Date.now();
-  const filePath = resolve(process.cwd(), process.argv[2] || 'content.json5');
+  const filePath = resolve(process.cwd(), process.argv[2] || 'nanostudy-content/content.json5');
   console.log(`Loading content from ${filePath}...`);
 
   const fileData = readFileSync(filePath, 'utf-8');

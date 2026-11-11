@@ -2,6 +2,8 @@ import { type Expression, simplify } from "@cortex-js/compute-engine";
 
 export function parseTex(tex: string): Expression {
     const simplifiedTex = tex
+        .replaceAll("\\left", "")
+        .replaceAll("\\right", "")
         .replaceAll("\\begin{pmatrix}", "(\\begin{pmatrix}")
         .replaceAll("\\end{pmatrix}", "\\end{pmatrix})");
 
