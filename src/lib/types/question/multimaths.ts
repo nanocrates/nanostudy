@@ -1,4 +1,4 @@
-import { fetchMultimathsQuestionById } from "$lib/api/question.remote";
+import { fetchMultimathsQuestionById } from "#lib/api/question.remote";
 import { Answer, Question } from ".";
 import type { MathsAnswer } from "./maths";
 

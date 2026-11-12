@@ -1,13 +1,13 @@
 <script lang="ts">
     let { question, submit } = $props();
 
-    import { AnswerSubmissionResult } from "$lib/types/question";
+    import { AnswerSubmissionResult } from "#lib/types/question";
 
-    import QuestionWorkspace from "$lib/components/QuestionWorkspace.svelte";
-    import MultistepQuestionDisplay from "$lib/components/MultistepQuestionDisplay.svelte";
-    import RawInput from "$lib/components/RawInput.svelte";
-    import AnswerFeedback from "$lib/components/AnswerFeedback.svelte";
-    import QuestionPreview from "$lib/components/QuestionPreview.svelte";
+    import QuestionWorkspace from "#lib/components/QuestionWorkspace.svelte";
+    import MultistepQuestionDisplay from "#lib/components/MultistepQuestionDisplay.svelte";
+    import RawInput from "#lib/components/RawInput.svelte";
+    import AnswerFeedback from "#lib/components/AnswerFeedback.svelte";
+    import QuestionPreview from "#lib/components/QuestionPreview.svelte";
 
     var currentStepIndex = $state(1);
     var currentStep = $derived(question.steps[currentStepIndex-1]);

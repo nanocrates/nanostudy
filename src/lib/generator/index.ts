@@ -1,6 +1,6 @@
-import type { ConstrainedVariable, DerivedVariable } from "$lib/server/db/schema";
-import { MathsQuestion } from "$lib/types/question";
-import { MathsAnswer, type GeneratedVariable } from "$lib/types/question/maths";
+import type { ConstrainedVariable, DerivedVariable } from "#lib/server/db/schema";
+import { MathsQuestion } from "#lib/types/question";
+import { MathsAnswer, type GeneratedVariable } from "#lib/types/question/maths";
 import { evaluate, simplify } from "@cortex-js/compute-engine";
 import { parseTex, simplifyAbnormalities } from "./simplify";
 

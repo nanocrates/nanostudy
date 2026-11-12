@@ -1,8 +1,8 @@
 <script lang="ts">
     let { data } = $props();
 
-    import TestWorkspace from "$lib/components/TestWorkspace.svelte";
-    import MathsRenderer from "$lib/components/MathsRenderer.svelte";
+    import TestWorkspace from "#lib/components/TestWorkspace.svelte";
+    import MathsRenderer from "#lib/components/MathsRenderer.svelte";
 </script>
 
 <MathsRenderer>

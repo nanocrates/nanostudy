@@ -1,4 +1,4 @@
-import { fetchLessonById, fetchLessonPrerequisitesByLessonId, fetchQuestionsByLessonId } from "$lib/api/lesson.remote";
+import { fetchLessonById, fetchLessonPrerequisitesByLessonId, fetchQuestionsByLessonId } from "#lib/api/lesson.remote";
 import type { Question } from "./question";
 
 export class Lesson {

@@ -1,11 +1,11 @@
 <script lang="ts">
     let { question } = $props();
 
-    import BasicQuestionDisplay from "$lib/components/BasicQuestionDisplay.svelte";
-    import ClozeQuestionDisplay from "$lib/components/ClozeQuestionDisplay.svelte";
-    import MultistepQuestionDisplay from "$lib/components/MultistepQuestionDisplay.svelte";
-    import MathsQuestionDisplay from "$lib/components/MathsQuestionDisplay.svelte";
-    import MultimathsQuestionDisplay from "$lib/components/MultimathsQuestionDisplay.svelte";
+    import BasicQuestionDisplay from "#lib/components/BasicQuestionDisplay.svelte";
+    import ClozeQuestionDisplay from "#lib/components/ClozeQuestionDisplay.svelte";
+    import MultistepQuestionDisplay from "#lib/components/MultistepQuestionDisplay.svelte";
+    import MathsQuestionDisplay from "#lib/components/MathsQuestionDisplay.svelte";
+    import MultimathsQuestionDisplay from "#lib/components/MultimathsQuestionDisplay.svelte";
 </script>
 
 <div class="question-prompt">

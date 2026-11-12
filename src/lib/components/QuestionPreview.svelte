@@ -1,11 +1,11 @@
 <script lang="ts">
     let { question } = $props();
 
-    import BasicQuestionPreview from "$lib/components/BasicQuestionPreview.svelte";
-    import ClozeQuestionPreview from "$lib/components/ClozeQuestionPreview.svelte";
-    import MultistepQuestionPreview from "$lib/components/MultistepQuestionPreview.svelte";
-    import MathsQuestionPreview from "$lib/components/MathsQuestionPreview.svelte";
-    import MultimathsQuestionPreview from "$lib/components/MultimathsQuestionPreview.svelte";
+    import BasicQuestionPreview from "#lib/components/BasicQuestionPreview.svelte";
+    import ClozeQuestionPreview from "#lib/components/ClozeQuestionPreview.svelte";
+    import MultistepQuestionPreview from "#lib/components/MultistepQuestionPreview.svelte";
+    import MathsQuestionPreview from "#lib/components/MathsQuestionPreview.svelte";
+    import MultimathsQuestionPreview from "#lib/components/MultimathsQuestionPreview.svelte";
 </script>
 
 <div class="card question-card">

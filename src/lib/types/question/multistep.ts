@@ -1,4 +1,4 @@
-import { fetchMultistepQuestionById } from "$lib/api/question.remote";
+import { fetchMultistepQuestionById } from "#lib/api/question.remote";
 import { Question } from ".";
 
 export class MultistepQuestion extends Question {

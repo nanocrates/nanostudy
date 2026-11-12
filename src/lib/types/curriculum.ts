@@ -1,4 +1,4 @@
-import { fetchCourseById, fetchLessonsByCourseId, fetchLessonsByCourseIdAndTopicId, fetchCourseTopicsByCourseId, fetchCourses, fetchCourseTopicByCourseIdAndTopicId } from '$lib/api/curriculum.remote';
+import { fetchCourseById, fetchLessonsByCourseId, fetchLessonsByCourseIdAndTopicId, fetchCourseTopicsByCourseId, fetchCourses, fetchCourseTopicByCourseIdAndTopicId } from '#lib/api/curriculum.remote';
 
 export class Course {
     constructor(

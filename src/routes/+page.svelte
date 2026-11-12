@@ -1,9 +1,9 @@
 <script lang="ts">
 import './layout.css';
-import Badge from "$lib/components/Badge.svelte";
-import TestWorkspace from "$lib/components/TestWorkspace.svelte";
-import MathsRenderer from "$lib/components/MathsRenderer.svelte";
-import { hasLaunched } from "$lib/data/countdown.ts"
+import Badge from "#lib/components/Badge.svelte";
+import TestWorkspace from "#lib/components/TestWorkspace.svelte";
+import MathsRenderer from "#lib/components/MathsRenderer.svelte";
+import { hasLaunched } from "#lib/data/countdown.ts"
 </script>
 
 <div class="page-wrapper">

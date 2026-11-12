@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { Course } from '$lib/types/curriculum';
+import { Course } from '#lib/types/curriculum';
 
 export const load: PageServerLoad = async ({ params }) => {
     const course = await Course.load(params.id);

@@ -1,6 +1,6 @@
-import { fetchBasicQuestionById } from "$lib/api/question.remote";
-import { Question } from "$lib/types/question/question";
-import { Answer } from "$lib/types/question/answer";
+import { fetchBasicQuestionById } from "#lib/api/question.remote";
+import { Question } from "#lib/types/question/question";
+import { Answer } from "#lib/types/question/answer";
 
 export class BasicQuestion extends Question {
     readonly type: string = "basic";

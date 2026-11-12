@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { Question, AnswerSubmissionResult } from "$lib/types/question";
-    import { checkAnswer } from "$lib/api/question.remote.ts";
-    import QuestionDisplay from "$lib/components/QuestionDisplay.svelte";
-    import BasicQuestionWorkspace from "$lib/components/BasicQuestionWorkspace.svelte";
-    import ClozeQuestionWorkspace from "$lib/components/ClozeQuestionWorkspace.svelte";
-    import MultistepQuestionWorkspace from "$lib/components/MultistepQuestionWorkspace.svelte";
-    import MathsQuestionWorkspace from "$lib/components/MathsQuestionWorkspace.svelte";
-    import MultimathsQuestionWorkspace from "$lib/components/MultimathsQuestionWorkspace.svelte";
+    import { Question, AnswerSubmissionResult } from "#lib/types/question";
+    import { checkAnswer } from "#lib/api/question.remote.ts";
+    import QuestionDisplay from "#lib/components/QuestionDisplay.svelte";
+    import BasicQuestionWorkspace from "#lib/components/BasicQuestionWorkspace.svelte";
+    import ClozeQuestionWorkspace from "#lib/components/ClozeQuestionWorkspace.svelte";
+    import MultistepQuestionWorkspace from "#lib/components/MultistepQuestionWorkspace.svelte";
+    import MathsQuestionWorkspace from "#lib/components/MathsQuestionWorkspace.svelte";
+    import MultimathsQuestionWorkspace from "#lib/components/MultimathsQuestionWorkspace.svelte";
 
     interface Props {
         question: Question;

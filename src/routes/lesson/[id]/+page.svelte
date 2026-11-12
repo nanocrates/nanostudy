@@ -1,10 +1,11 @@
 <script lang="ts">
-    import LessonCard from "$lib/components/LessonCard.svelte";
-    import QuestionPreview from "$lib/components/QuestionPreview.svelte";
-    import LearnButton from "$lib/components/LearnButton.svelte";
-    import TestButton from "$lib/components/TestButton.svelte";
-    import ReadContentDisplay from "$lib/components/ReadContentDisplay.svelte";
-    import MathsRenderer from "$lib/components/MathsRenderer.svelte";
+    import LessonCard from "#lib/components/LessonCard.svelte";
+    import QuestionPreview from "#lib/components/QuestionPreview.svelte";
+    import LearnButton from "#lib/components/LearnButton.svelte";
+    import TestButton from "#lib/components/TestButton.svelte";
+    import ReadContentDisplay from "#lib/components/ReadContentDisplay.svelte";
+    import MathsRenderer from "#lib/components/MathsRenderer.svelte";
+    import MarkdownRenderer from "#lib/components/MarkdownRenderer.svelte";
     
     let { data } = $props();
 </script>
@@ -33,7 +34,9 @@
 
     <hr/>
 
+    <MarkdownRenderer>
     <ReadContentDisplay readContent={data.lesson.readContent} />
+    </MarkdownRenderer>
     <hr />
 
     <h3>Lesson content</h3>

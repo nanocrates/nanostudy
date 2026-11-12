@@ -1,8 +1,8 @@
 import { query } from '$app/server';
-import { db } from '$lib/server/db';
-import { lesson_questions, lessons, basic_questions } from '$lib/server/db/schema';
-import { Lesson } from '$lib/types/lesson';
-import { Answer, BasicQuestion, Question } from '$lib/types/question';
+import { db } from '#lib/server/db';
+import { lesson_questions, lessons, basic_questions } from '#lib/server/db/schema';
+import { Lesson } from '#lib/types/lesson';
+import { Answer, BasicQuestion, Question } from '#lib/types/question';
 import { sql, inArray } from 'drizzle-orm';
 import { error } from "@sveltejs/kit"
 import * as v from 'valibot';

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import QuestionDisplay from "$lib/components/QuestionDisplay.svelte";
+    import QuestionDisplay from "#lib/components/QuestionDisplay.svelte";
 
     const { answerAttempt } = $props();
 

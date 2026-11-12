@@ -1,9 +1,9 @@
-import { fetchMathsQuestionById } from "$lib/api/question.remote";
-import { Question } from "$lib/types/question/question";
-import { Answer } from "$lib/types/question/answer";
+import { fetchMathsQuestionById } from "#lib/api/question.remote";
+import { Question } from "#lib/types/question/question";
+import { Answer } from "#lib/types/question/answer";
 import { evaluate, number, round } from "mathjs";
 import { parse } from "@cortex-js/compute-engine"
-import { parseTex } from "$lib/generator/simplify";
+import { parseTex } from "#lib/generator/simplify";
 
 export type GeneratedVariable = {
     name: string;

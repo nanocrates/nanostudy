@@ -1,12 +1,12 @@
 <script lang="ts">
     let { questionIds, lesson, hideMetadata } = $props();
 
-    import RawInput from "$lib/components/RawInput.svelte"
-    import QuestionWorkspace from "$lib/components/QuestionWorkspace.svelte";
-    import AnswerFeedback from "$lib/components/AnswerFeedback.svelte";
-    import TestCompletionSummary from "$lib/components/TestCompletionSummary.svelte";
-    import MathsRenderer from "$lib/components/MathsRenderer.svelte";
-    import { getQuestion } from "$lib/api/question.remote.ts";
+    import RawInput from "#lib/components/RawInput.svelte"
+    import QuestionWorkspace from "#lib/components/QuestionWorkspace.svelte";
+    import AnswerFeedback from "#lib/components/AnswerFeedback.svelte";
+    import TestCompletionSummary from "#lib/components/TestCompletionSummary.svelte";
+    import MathsRenderer from "#lib/components/MathsRenderer.svelte";
+    import { getQuestion } from "#lib/api/question.remote.ts";
 
     let currentQuestionNumber = $state(1);
     let currentQuestionId = $derived(questionIds[currentQuestionNumber - 1]);

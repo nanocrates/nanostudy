@@ -1,5 +1,5 @@
 <script lang="ts">
-    import CourseCard from "$lib/components/CourseCard.svelte";
+    import CourseCard from "#lib/components/CourseCard.svelte";
     let { data } = $props();
 </script>
 

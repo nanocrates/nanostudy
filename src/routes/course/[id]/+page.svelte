@@ -1,6 +1,6 @@
 <script lang="ts">
-    import CourseCard from "$lib/components/CourseCard.svelte";
-    import TopicView from "$lib/components/TopicView.svelte";
+    import CourseCard from "#lib/components/CourseCard.svelte";
+    import TopicView from "#lib/components/TopicView.svelte";
     let { data } = $props();
 </script>
 

@@ -1,14 +1,14 @@
 import { query } from '$app/server';
-import { db } from '$lib/server/db';
-import { basic_questions, multistep_questions, multistep_question_parts, maths_questions, cloze_questions } from '$lib/server/db/schema';
-import { BasicQuestion, Question, AnswerSubmissionResult, MultistepQuestion, MathsQuestion } from '$lib/types/question';
+import { db } from '#lib/server/db';
+import { basic_questions, multistep_questions, multistep_question_parts, maths_questions, cloze_questions } from '#lib/server/db/schema';
+import { BasicQuestion, Question, AnswerSubmissionResult, MultistepQuestion, MathsQuestion } from '#lib/types/question';
 import { sql } from 'drizzle-orm';
 import * as v from 'valibot';
 import { error } from '@sveltejs/kit';
-import { BasicAnswer } from '$lib/types/question';
-import { MathsQuestionTemplate } from '$lib/generator';
-import { fetchMultimathsQuestionByIdHandle } from '$lib/server/db/query';
-import { ClozeAnswer, ClozeQuestion } from '$lib/types/question/cloze';
+import { BasicAnswer } from '#lib/types/question';
+import { MathsQuestionTemplate } from '#lib/generator';
+import { fetchMultimathsQuestionByIdHandle } from '#lib/server/db/query';
+import { ClozeAnswer, ClozeQuestion } from '#lib/types/question/cloze';
 
 export const fetchBasicQuestionById = query(
     v.object({

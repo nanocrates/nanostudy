@@ -1,10 +1,10 @@
-import { db } from '$lib/server/db';
-import { multimaths_questions, multimaths_question_parts, maths_questions } from '$lib/server/db/schema';
-import { Question, Answer } from '$lib/types/question';
+import { db } from '#lib/server/db';
+import { multimaths_questions, multimaths_question_parts, maths_questions } from '#lib/server/db/schema';
+import { Question, Answer } from '#lib/types/question';
 import { sql } from 'drizzle-orm';
-import { evaluateDerivedVariable, MathsQuestionTemplate } from '$lib/generator';
-import { MultimathsQuestion } from '$lib/types/question/multimaths';
-import type { GeneratedVariable } from '$lib/types/question/maths';
+import { evaluateDerivedVariable, MathsQuestionTemplate } from '#lib/generator';
+import { MultimathsQuestion } from '#lib/types/question/multimaths';
+import type { GeneratedVariable } from '#lib/types/question/maths';
 
 export const fetchMathsQuestionTemplateById = async ({ questionId }: { questionId: string }): Promise<MathsQuestionTemplate | null> => {
     const [data] = await db.execute<typeof maths_questions.$inferSelect>(sql`

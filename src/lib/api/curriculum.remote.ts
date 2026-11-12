@@ -1,8 +1,8 @@
 import { query } from '$app/server';
-import { db } from '$lib/server/db';
-import { lessons, topic_lessons, courses, course_topics, lesson_questions, basic_questions } from '$lib/server/db/schema';
-import { Course, CourseTopic } from '$lib/types/curriculum';
-import { Lesson } from '$lib/types/lesson';
+import { db } from '#lib/server/db';
+import { lessons, topic_lessons, courses, course_topics, lesson_questions, basic_questions } from '#lib/server/db/schema';
+import { Course, CourseTopic } from '#lib/types/curriculum';
+import { Lesson } from '#lib/types/lesson';
 import { sql } from 'drizzle-orm';
 import * as v from 'valibot';
 

@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { Lesson } from '$lib/types/lesson';
+import { Lesson } from '#lib/types/lesson';
 
 export const load: PageServerLoad = async ({ params }) => {
     const lesson = await Lesson.load(params.id);

@@ -1,10 +1,10 @@
-import type { Transport } from '@sveltejs/kit';
-import { Course, CourseTopic } from '$lib/types/curriculum';
-import { Lesson } from '$lib/types/lesson';
-import { Question, Answer, BasicQuestion, BasicAnswer, ClozeQuestion, ClozeAnswer, MultistepQuestion, AnswerSubmissionResult, MathsQuestion } from '$lib/types/question';
-import { MathsQuestionTemplate } from '$lib/generator';
-import { MathsAnswer } from '$lib/types/question/maths';
-import { MultimathsQuestion } from '$lib/types/question/multimaths';
+import type { Transport } from '@sveltejs/kit/hooks';
+import { Course, CourseTopic } from '#lib/types/curriculum';
+import { Lesson } from '#lib/types/lesson';
+import { Question, Answer, BasicQuestion, BasicAnswer, ClozeQuestion, ClozeAnswer, MultistepQuestion, AnswerSubmissionResult, MathsQuestion } from '#lib/types/question';
+import { MathsQuestionTemplate } from '#lib/generator';
+import { MathsAnswer } from '#lib/types/question/maths';
+import { MultimathsQuestion } from '#lib/types/question/multimaths';
 
 const models: Record<string, any> = {
     Course,

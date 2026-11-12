@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { AnswerSubmissionResult } from "$lib/types/question";
-    import { Lesson } from "$lib/types/lesson";
-    import AnswerFeedback from "$lib/components/AnswerFeedback.svelte";
+    import { AnswerSubmissionResult } from "#lib/types/question";
+    import { Lesson } from "#lib/types/lesson";
+    import AnswerFeedback from "#lib/components/AnswerFeedback.svelte";
 
     interface Props {
         lesson: Lesson;

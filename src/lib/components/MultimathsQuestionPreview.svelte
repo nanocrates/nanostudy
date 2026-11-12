@@ -2,7 +2,7 @@
     let { question } = $props();
 
     let finalAnswer = $derived(question.answer.display());
-    import QuestionPreview from "$lib/components/QuestionPreview.svelte";
+    import QuestionPreview from "#lib/components/QuestionPreview.svelte";
 </script>
 
 <h3>{question.prompt}</h3>

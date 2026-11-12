@@ -1,4 +1,4 @@
-import { Course } from "$lib/types/curriculum";
+import { Course } from "#lib/types/curriculum";
 
 export async function load() {
     return { 
